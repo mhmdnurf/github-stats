@@ -1,0 +1,25 @@
+services:
+  github-stats:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: github-stats:local
+    container_name: github-stats
+
+    env_file:
+      - .env
+    environment:
+      HTTP_ADDRESS: ":9000"
+
+    ports:
+      - "9000:9000"
+
+    restart: unless-stopped
+
+    read_only: true
+
+    cap_drop:
+        - ALL
+
+    security_opt:
+        - no-new-privilages:true
