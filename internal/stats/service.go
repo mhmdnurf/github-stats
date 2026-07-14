@@ -10,7 +10,10 @@ import (
 
 const cacheKeyPrefix = "stats:v1:"
 
-var ErrUsernameRequired = errors.New("username is required")
+var (
+	ErrUsernameRequired = errors.New("username is required")
+	ErrUserNotFound     = errors.New("user not found")
+)
 
 type Fetcher interface {
 	Fetch(ctx context.Context, username string) (UserStats, error)

@@ -324,3 +324,76 @@ func TestClientFetchErrors(t *testing.T) {
 		})
 	}
 }
+
+func TestNewClientValidatesDependencies(t *testing.T) {
+	tests := []struct {
+		name       string
+		token      string
+		httpClient *http.Client
+		wantError  string
+	}{
+		{
+			name:       "empty token",
+			token:      "",
+			httpClient: &http.Client{},
+			wantError:  "github token is required",
+		},
+		{
+			name:       "whitespace token",
+			token:      "   ",
+			httpClient: &http.Client{},
+			wantError:  "github token is required",
+		},
+		{
+			name:       "nil HTTP client",
+			token:      "test-token",
+			httpClient: nil,
+			wantError:  "http client is required",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			client, err := NewClient(
+				test.token,
+				test.httpClient,
+			)
+
+			if err == nil {
+				t.Fatal("expected an error")
+			}
+
+			if client != nil {
+				t.Fatal("expected a nil client")
+			}
+
+			if !strings.Contains(err.Error(), test.wantError) {
+				t.Fatalf(
+					"expected error containing %q, got %q",
+					test.wantError,
+					err,
+				)
+			}
+		})
+	}
+}
+
+func TestNewClientNormalizesToken(t *testing.T) {
+	httpClient := &http.Client{}
+
+	client, err := NewClient(
+		"  test-token  ",
+		httpClient,
+	)
+	if err != nil {
+		t.Fatalf("create client: %v", err)
+	}
+
+	if client.token != "test-token" {
+		t.Fatalf("unexpected token: %q", client.token)
+	}
+
+	if client.httpClient != httpClient {
+		t.Fatal("expected the supplied HTTP client")
+	}
+}

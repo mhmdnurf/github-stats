@@ -22,7 +22,8 @@ type Client struct {
 var _ stats.Fetcher = (*Client)(nil)
 
 func NewClient(token string, httpClient *http.Client) (*Client, error) {
-	if strings.TrimSpace(token) == "" {
+	normalizedToken := strings.TrimSpace(token)
+	if normalizedToken == "" {
 		return nil, errors.New("github token is required")
 	}
 
@@ -32,7 +33,7 @@ func NewClient(token string, httpClient *http.Client) (*Client, error) {
 
 	return &Client{
 		httpClient: httpClient,
-		token:      token,
+		token:      normalizedToken,
 	}, nil
 }
 
@@ -119,7 +120,7 @@ type graphqlError struct {
 	Message string `json:"message"`
 }
 
-var ErrUserNotFound = errors.New("github user not found")
+var ErrUserNotFound = stats.ErrUserNotFound
 
 func (c *Client) Fetch(ctx context.Context, username string) (stats.UserStats, error) {
 	var result stats.UserStats
