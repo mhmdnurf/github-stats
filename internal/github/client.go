@@ -59,6 +59,13 @@ query UserStats($username: String!, $cursor: String) {
 		}
 		contributionsCollection {
 			totalCommitContributions
+			contributionCalendar {
+				weeks {
+					contributionDays {
+						contributionCount
+					}
+				}
+			}
 		}
 		pullRequests(first: 1) {
 			totalCount
@@ -109,7 +116,37 @@ type pageInfo struct {
 }
 
 type contributionStats struct {
-	TotalCommitContributions int `json:"totalCommitContributions"`
+	TotalCommitContributions int                  `json:"totalCommitContributions"`
+	ContributionCalendar     contributionCalendar `json:"contributionCalendar"`
+}
+
+type contributionCalendar struct {
+	Weeks []contributionWeek `json:"weeks"`
+}
+
+type contributionWeek struct {
+	ContributionDays []contributionDay `json:"contributionDays"`
+}
+
+type contributionDay struct {
+	ContributionCount int `json:"contributionCount"`
+}
+
+func (calendar contributionCalendar) weeklyTotals() []int {
+	if len(calendar.Weeks) == 0 {
+		return nil
+	}
+
+	totals := make([]int, 0, len(calendar.Weeks))
+	for _, week := range calendar.Weeks {
+		total := 0
+		for _, day := range week.ContributionDays {
+			total += day.ContributionCount
+		}
+		totals = append(totals, total)
+	}
+
+	return totals
 }
 
 type countConnection struct {
@@ -144,6 +181,8 @@ func (c *Client) Fetch(ctx context.Context, username string) (stats.UserStats, e
 			result.Commits = user.ContributionsCollection.TotalCommitContributions
 			result.PullRequests = user.PullRequests.TotalCount
 			result.Followers = user.Followers.TotalCount
+			result.WeeklyActivity = user.ContributionsCollection.
+				ContributionCalendar.weeklyTotals()
 
 			firstPage = false
 		}

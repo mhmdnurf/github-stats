@@ -7,8 +7,11 @@ import (
 )
 
 const (
-	DefaultTheme = "default"
-	LightTheme   = "light"
+	DefaultTheme    = "default"
+	LightTheme      = "light"
+	DraculaTheme    = "dracula"
+	TokyoNightTheme = "tokyonight"
+	GruvboxTheme    = "gruvbox"
 )
 
 var ErrUnknownTheme = errors.New("unknown card theme")
@@ -19,7 +22,9 @@ type Theme struct {
 	Border     string
 	Title      string
 	Text       string
+	Value      string
 	Accent     string
+	Track      string
 }
 
 var themes = map[string]Theme{
@@ -28,8 +33,10 @@ var themes = map[string]Theme{
 		Background: "#0d1117",
 		Border:     "#30363d",
 		Title:      "#f0f6fc",
-		Text:       "#8b949e",
-		Accent:     "#2f81f7",
+		Text:       "#7d8590",
+		Value:      "#e6edf3",
+		Accent:     "#3fb950",
+		Track:      "#21262d",
 	},
 	LightTheme: {
 		Name:       LightTheme,
@@ -37,7 +44,39 @@ var themes = map[string]Theme{
 		Border:     "#d0d7de",
 		Title:      "#1f2328",
 		Text:       "#656d76",
+		Value:      "#1f2328",
 		Accent:     "#0969da",
+		Track:      "#eaeef2",
+	},
+	DraculaTheme: {
+		Name:       DraculaTheme,
+		Background: "#282a36",
+		Border:     "#44475a",
+		Title:      "#f8f8f2",
+		Text:       "#6272a4",
+		Value:      "#f8f8f2",
+		Accent:     "#bd93f9",
+		Track:      "#343746",
+	},
+	TokyoNightTheme: {
+		Name:       TokyoNightTheme,
+		Background: "#1a1b26",
+		Border:     "#2f334d",
+		Title:      "#c0caf5",
+		Text:       "#565f89",
+		Value:      "#c0caf5",
+		Accent:     "#7aa2f7",
+		Track:      "#24283b",
+	},
+	GruvboxTheme: {
+		Name:       GruvboxTheme,
+		Background: "#282828",
+		Border:     "#504945",
+		Title:      "#ebdbb2",
+		Text:       "#928374",
+		Value:      "#ebdbb2",
+		Accent:     "#fabd2f",
+		Track:      "#3c3836",
 	},
 }
 

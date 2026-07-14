@@ -1,0 +1,128 @@
+<svg
+        xmlns="http://www.w3.org/2000/svg"
+        width="495"
+        height="240"
+        viewBox="0 0 495 240"
+        role="img"
+        aria-label="{{.DisplayName}} GitHub statistics: rank {{.Rank.Level}}, {{.Stats.Stars}} stars, {{.Stats.Commits}} commits"
+>
+    <title>{{.DisplayName}} GitHub statistics</title>
+
+    <style>
+        text {
+        font-family: -apple-system, BlinkMacSystemFont,
+        "Segoe UI", Ubuntu, sans-serif;
+        }
+        .header { font-size: 18px; font-weight: 600; }
+        .sub { font-size: 11.5px; font-weight: 400; }
+        .label {
+        font-size: 10.5px;
+        font-weight: 600;
+        letter-spacing: 1.2px;
+        }
+        .value {
+        font-size: 22px;
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+        }
+        .rank { font-size: 16px; font-weight: 700; }
+
+        @keyframes fadeUp {
+        from { opacity: 0; transform: translateY(6px); }
+        to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes ringFill {
+        from { stroke-dashoffset: {{.Ring.Circumference}}; }
+        }
+        {{if .Spark.Show}}@keyframes sparkDraw {
+        from { stroke-dashoffset: {{.Spark.Length}}; }
+        to { stroke-dashoffset: 0; }
+        }{{end}}
+
+        .stat {
+        opacity: 0;
+        animation: fadeUp 0.5s ease-out forwards;
+        }
+        {{range $index, $unused := .StatDelays}}.stat-{{$index}} {
+        animation-delay: {{index $.StatDelays $index}}s;
+        }
+        {{end}}
+        .ring-progress {
+        animation: ringFill 0.9s ease-out forwards;
+        }
+        .spark-line {
+        animation: sparkDraw 1s ease-out 0.55s both;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+        * { animation: none !important; }
+        .stat { opacity: 1; }
+        }
+    </style>
+
+    <rect
+            x="0.5"
+            y="0.5"
+            width="494"
+            height="239"
+            rx="10"
+            fill="{{.Theme.Background}}"
+            stroke="{{.Theme.Border}}"
+    />
+
+    <g class="stat stat-0">
+        <text x="28" y="40" class="header" fill="{{.Theme.Title}}">{{.DisplayName}}</text>
+        <text x="28" y="58" class="sub" fill="{{.Theme.Text}}">@{{.Stats.Username}} · last 12 months</text>
+    </g>
+
+    <g class="stat stat-1">
+        <circle
+                cx="437"
+                cy="52"
+                r="27"
+                fill="none"
+                stroke="{{.Theme.Track}}"
+                stroke-width="5"
+        />
+        <circle
+                class="ring-progress"
+                cx="437"
+                cy="52"
+                r="27"
+                fill="none"
+                stroke="{{.Theme.Accent}}"
+                stroke-width="5"
+                stroke-linecap="round"
+                stroke-dasharray="{{.Ring.Circumference}}"
+                stroke-dashoffset="{{.Ring.Offset}}"
+                transform="rotate(-90 437 52)"
+        />
+        <text
+                x="437"
+                y="57.5"
+                class="rank"
+                fill="{{.Theme.Accent}}"
+                text-anchor="middle"
+        >{{.Rank.Level}}</text>
+    </g>
+
+    {{range .Cells}}<g class="stat stat-{{.DelayIndex}}">
+    <text x="{{.X}}" y="{{.LabelY}}" class="label" fill="{{$.Theme.Text}}">{{.Label}}</text>
+    <text x="{{.X}}" y="{{.ValueY}}" class="value" fill="{{$.Theme.Value}}">{{.Value}}</text>
+</g>
+    {{end}}
+
+    {{if .Spark.Show}}<g class="stat stat-6">
+    <text x="352" y="164" class="label" fill="{{.Theme.Text}}">ACTIVITY</text>
+    <polyline
+            class="spark-line"
+            points="{{.Spark.Points}}"
+            fill="none"
+            stroke="{{.Theme.Accent}}"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-dasharray="{{.Spark.Length}}"
+    />
+</g>{{end}}
+</svg>
