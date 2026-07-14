@@ -2,7 +2,7 @@
 
 # GitHub Stats
 
-**A lightweight, self-hosted SVG card generator for GitHub profile statistics.**
+**A self-hosted Go service that turns GitHub profile activity into fast, embeddable SVG statistics cards.**
 
 [Quick Start](#quick-start) ·
 [Usage](#usage) ·
@@ -63,12 +63,15 @@ Copy the example environment file:
 cp .env.example .env
 ```
 
-Add your GitHub token:
+Add the GitHub username to display and your GitHub token:
 
 ```dotenv
+GITHUB_USERNAME=mhmdnurf
 GITHUB_TOKEN=your_github_token
 HTTP_ADDRESS=:9000
 ```
+
+Without `GITHUB_USERNAME`, the server fails during startup.
 
 > [!WARNING]
 > Never commit `.env` or expose your GitHub token in client-side code, logs, or
@@ -94,30 +97,32 @@ http://localhost:9000
 
 ## Usage
 
-Request a card by providing a GitHub username:
+Request the statistics card for the configured GitHub username:
 
 ```text
-http://localhost:9000/stats?username=mhmdnurf
+http://localhost:9000/stats
 ```
 
 Embed the card in Markdown:
 
 ```markdown
-![GitHub statistics](http://localhost:9000/stats?username=mhmdnurf)
+![GitHub statistics](http://localhost:9000/stats)
 ```
 
 Select a theme with the `theme` query parameter:
 
 ```text
-http://localhost:9000/stats?username=mhmdnurf&theme=light
+http://localhost:9000/stats?theme=light
 ```
+
+The GitHub username is configured through `GITHUB_USERNAME` and cannot be
+overridden through query parameters.
 
 ### Query Parameters
 
-| Parameter  | Required | Default   | Description                  |
-|------------|----------|-----------|------------------------------|
-| `username` | Yes      | —         | GitHub username to retrieve  |
-| `theme`    | No       | `default` | SVG card theme               |
+| Parameter | Required | Default   | Description    |
+|-----------|----------|-----------|----------------|
+| `theme`   | No       | `default` | SVG card theme |
 
 ## Statistics
 
@@ -145,7 +150,7 @@ Unknown themes return an HTTP `400 Bad Request` response.
 ### Generate a statistics card
 
 ```http
-GET /stats?username={username}&theme={theme}
+GET /stats?theme={theme}
 ```
 
 A successful request returns:
@@ -158,8 +163,8 @@ Possible error responses include:
 
 | Status | Meaning                              |
 |--------|--------------------------------------|
-| `400`  | Invalid username or unknown theme    |
-| `404`  | GitHub user was not found            |
+| `400`  | Unknown theme                        |
+| `404`  | Configured GitHub user was not found |
 | `504`  | GitHub request exceeded the deadline |
 | `500`  | Unexpected server error              |
 
@@ -173,10 +178,11 @@ Returns `200 OK` when the server is running.
 
 ## Configuration
 
-| Variable         | Required | Default | Description                     |
-|------------------|----------|---------|---------------------------------|
-| `GITHUB_TOKEN`   | Yes      | —       | Token used for the GitHub API   |
-| `HTTP_ADDRESS`   | No       | `:9000` | HTTP server listening address   |
+| Variable          | Required | Default | Description                          |
+|-------------------|----------|---------|--------------------------------------|
+| `GITHUB_USERNAME` | Yes      | —       | GitHub account displayed by the card |
+| `GITHUB_TOKEN`    | Yes      | —       | Token used for the GitHub API        |
+| `HTTP_ADDRESS`    | No       | `:9000` | HTTP server listening address        |
 
 Environment variables override values loaded from `.env`.
 
