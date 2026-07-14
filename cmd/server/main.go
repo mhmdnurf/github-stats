@@ -80,6 +80,7 @@ func run(logger *slog.Logger) error {
 	}
 
 	statsHandler, err := handler.NewStats(
+		configuration.GitHubUsername,
 		statsService,
 		cardRenderer,
 		logger,

@@ -27,6 +27,7 @@ type CardRenderer interface {
 }
 
 type Stats struct {
+	username string
 	service  StatsService
 	renderer CardRenderer
 	logger   *slog.Logger
@@ -35,10 +36,16 @@ type Stats struct {
 const statsRequestTimeout = 25 * time.Second
 
 func NewStats(
+	username string,
 	service StatsService,
 	renderer CardRenderer,
 	logger *slog.Logger,
 ) (*Stats, error) {
+	normalizedUsername := strings.TrimSpace(username)
+	if !validGitHubUsername(normalizedUsername) {
+		return nil, errors.New("valid GitHub username is required")
+	}
+
 	if service == nil {
 		return nil, errors.New("stats service is required")
 	}
@@ -52,6 +59,7 @@ func NewStats(
 	}
 
 	return &Stats{
+		username: normalizedUsername,
 		service:  service,
 		renderer: renderer,
 		logger:   logger,
@@ -80,18 +88,6 @@ func (handler *Stats) ServeHTTP(
 
 	request = request.WithContext(ctx)
 
-	username := strings.TrimSpace(
-		request.URL.Query().Get("username"),
-	)
-	if !validGitHubUsername(username) {
-		writeError(
-			writer,
-			http.StatusBadRequest,
-			"invalid GitHub username",
-		)
-		return
-	}
-
 	themeName := request.URL.Query().Get("theme")
 	if _, err := card.ResolveTheme(themeName); err != nil {
 		writeError(
@@ -104,7 +100,7 @@ func (handler *Stats) ServeHTTP(
 
 	userStats, err := handler.service.Get(
 		request.Context(),
-		username,
+		handler.username,
 	)
 	if err != nil {
 		if errors.Is(err, context.Canceled) {
@@ -133,7 +129,7 @@ func (handler *Stats) ServeHTTP(
 			request.Context(),
 			"get GitHub user stats",
 			"username",
-			username,
+			handler.username,
 			"error",
 			err,
 		)
@@ -164,7 +160,7 @@ func (handler *Stats) ServeHTTP(
 			request.Context(),
 			"render GitHub statistics card",
 			"username",
-			username,
+			handler.username,
 			"error",
 			err,
 		)
@@ -195,7 +191,7 @@ func (handler *Stats) ServeHTTP(
 			request.Context(),
 			"write SVG response",
 			"username",
-			username,
+			handler.username,
 			"error",
 			err,
 		)

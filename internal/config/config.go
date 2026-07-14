@@ -12,8 +12,9 @@ import (
 const defaultHTTPAddress = ":9000"
 
 type Config struct {
-	GitHubToken string
-	HTTPAddress string
+	GitHubToken    string
+	GitHubUsername string
+	HTTPAddress    string
 }
 
 func Load() (Config, error) {
@@ -27,6 +28,16 @@ func load(filename string) (Config, error) {
 			"load %s: %w",
 			filename,
 			err,
+		)
+	}
+
+	username := strings.TrimSpace(
+		os.Getenv("GITHUB_USERNAME"),
+	)
+
+	if username == "" {
+		return Config{}, errors.New(
+			"GITHUB_USERNAME is required",
 		)
 	}
 
@@ -47,7 +58,8 @@ func load(filename string) (Config, error) {
 	}
 
 	return Config{
-		GitHubToken: token,
-		HTTPAddress: address,
+		GitHubToken:    token,
+		GitHubUsername: username,
+		HTTPAddress:    address,
 	}, nil
 }
