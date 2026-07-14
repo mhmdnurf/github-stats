@@ -42,7 +42,10 @@ type sparkData struct {
 type cellData struct {
 	Label      string
 	Value      string
+	IconPath   string
 	X          int
+	LabelX     int
+	IconY      int
 	LabelY     int
 	ValueY     int
 	DelayIndex int
@@ -112,10 +115,11 @@ func buildCells(userStats stats.UserStats) []cellData {
 		rowTwoValueY = 190
 	)
 
-	return []cellData{
+	cells := []cellData{
 		{
 			Label:      "STARS",
 			Value:      formatCompact(userStats.Stars),
+			IconPath:   iconStar,
 			X:          columnOne,
 			LabelY:     rowOneLabelY,
 			ValueY:     rowOneValueY,
@@ -124,6 +128,7 @@ func buildCells(userStats stats.UserStats) []cellData {
 		{
 			Label:      "COMMITS",
 			Value:      formatCompact(userStats.Commits),
+			IconPath:   iconCommit,
 			X:          columnTwo,
 			LabelY:     rowOneLabelY,
 			ValueY:     rowOneValueY,
@@ -132,6 +137,7 @@ func buildCells(userStats stats.UserStats) []cellData {
 		{
 			Label:      "PULL REQUESTS",
 			Value:      formatCompact(userStats.PullRequests),
+			IconPath:   iconPullRequest,
 			X:          columnThree,
 			LabelY:     rowOneLabelY,
 			ValueY:     rowOneValueY,
@@ -140,6 +146,7 @@ func buildCells(userStats stats.UserStats) []cellData {
 		{
 			Label:      "REPOSITORIES",
 			Value:      formatCompact(userStats.Repositories),
+			IconPath:   iconRepo,
 			X:          columnOne,
 			LabelY:     rowTwoLabelY,
 			ValueY:     rowTwoValueY,
@@ -148,12 +155,25 @@ func buildCells(userStats stats.UserStats) []cellData {
 		{
 			Label:      "FOLLOWERS",
 			Value:      formatCompact(userStats.Followers),
+			IconPath:   iconPeople,
 			X:          columnTwo,
 			LabelY:     rowTwoLabelY,
 			ValueY:     rowTwoValueY,
 			DelayIndex: 6,
 		},
 	}
+
+	const (
+		iconTextGap = 18
+		iconAscent  = 10
+	)
+
+	for index := range cells {
+		cells[index].LabelX = cells[index].X + iconTextGap
+		cells[index].IconY = cells[index].LabelY - iconAscent
+	}
+
+	return cells
 }
 
 func statDelays() []string {

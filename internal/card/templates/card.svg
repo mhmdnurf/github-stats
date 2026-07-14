@@ -107,7 +107,10 @@
     </g>
 
     {{range .Cells}}<g class="stat stat-{{.DelayIndex}}">
-    <text x="{{.X}}" y="{{.LabelY}}" class="label" fill="{{$.Theme.Text}}">{{.Label}}</text>
+    <g transform="translate({{.X}}, {{.IconY}})">
+        <path fill="{{$.Theme.Accent}}" transform="scale(0.72)" d="{{.IconPath}}"/>
+    </g>
+    <text x="{{.LabelX}}" y="{{.LabelY}}" class="label" fill="{{$.Theme.Text}}">{{.Label}}</text>
     <text x="{{.X}}" y="{{.ValueY}}" class="value" fill="{{$.Theme.Value}}">{{.Value}}</text>
 </g>
     {{end}}
