@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"reflect"
 	"sync"
 	"testing"
 	"time"
@@ -46,7 +47,7 @@ func TestMemoryGetSetAndExpiration(t *testing.T) {
 	if !found {
 		t.Fatal("expected cache hit")
 	}
-	if got != value {
+	if !reflect.DeepEqual(value, got) {
 		t.Fatalf("unexpected value: got %+v, want %+v", got, value)
 	}
 
@@ -151,7 +152,7 @@ func TestMemoryConcurrentAccess(t *testing.T) {
 				return
 			}
 
-			if got != value {
+			if !reflect.DeepEqual(got, value) {
 				errorChannel <- fmt.Errorf(
 					"unexpected value for %s: got %+v, want %+v",
 					key,

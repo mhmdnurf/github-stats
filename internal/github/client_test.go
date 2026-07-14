@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -90,7 +91,7 @@ func TestClientFetch(t *testing.T) {
 		Followers:    57,
 	}
 
-	if got != want {
+	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("unexpected stats: got %+v, want %+v", got, want)
 	}
 }
@@ -207,7 +208,7 @@ func TestClientFetchPaginatesRepositories(t *testing.T) {
 		Followers:    57,
 	}
 
-	if got != want {
+	if !reflect.DeepEqual(want, got) {
 		t.Fatalf("unexpected stats: got %+v, want %+v", got, want)
 	}
 }

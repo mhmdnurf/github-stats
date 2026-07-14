@@ -75,16 +75,16 @@ func TestRendererRender(t *testing.T) {
 	expectedText := []string{
 		"Muhammad Nurfatkhur Rahman GitHub statistics",
 		"Muhammad Nurfatkhur Rahman",
-		"@mhmdnurf",
-		"Repositories",
+		"@mhmdnurf · last 12 months",
+		"REPOSITORIES",
 		"101",
-		"Stars",
+		"STARS",
 		"202",
-		"Commits",
+		"COMMITS",
 		"303",
-		"Pull Requests",
+		"PULL REQUESTS",
 		"404",
-		"Followers",
+		"FOLLOWERS",
 		"505",
 	}
 
@@ -99,8 +99,10 @@ func TestRendererRender(t *testing.T) {
 		"#0d1117",
 		"#30363d",
 		"#f0f6fc",
-		"#8b949e",
-		"#2f81f7",
+		"#7d8590",
+		"#e6edf3",
+		"#3fb950",
+		"#21262d",
 	} {
 		if !strings.Contains(output, color) {
 			t.Errorf("expected default-theme color %q", color)

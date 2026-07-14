@@ -3,6 +3,7 @@ package stats
 import (
 	"context"
 	"errors"
+	"reflect"
 	"testing"
 	"time"
 )
@@ -91,7 +92,7 @@ func TestServiceGetReturnsCachedStats(t *testing.T) {
 		t.Fatalf("get stats: %v", err)
 	}
 
-	if got != want {
+	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("unexpected stats: got %+v, want %+v", got, want)
 	}
 
@@ -155,7 +156,7 @@ func TestServiceGetFetchesAndCachesOnMiss(t *testing.T) {
 					t.Fatalf("unexpected cache key: %q", key)
 				}
 
-				if value != want {
+				if !reflect.DeepEqual(value, want) {
 					t.Fatalf(
 						"unexpected cached value: got %+v, want %+v",
 						value,
@@ -185,7 +186,7 @@ func TestServiceGetFetchesAndCachesOnMiss(t *testing.T) {
 		t.Fatalf("get stats: %v", err)
 	}
 
-	if got != want {
+	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("unexpected stats: got %+v, want %+v", got, want)
 	}
 

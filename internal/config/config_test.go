@@ -52,12 +52,14 @@ func unsetEnvironment(
 }
 
 func TestLoadFromFile(t *testing.T) {
+	unsetEnvironment(t, "GITHUB_USERNAME")
 	unsetEnvironment(t, "GITHUB_TOKEN")
 	unsetEnvironment(t, "HTTP_ADDRESS")
 
 	filename := writeTestEnv(
 		t,
-		"GITHUB_TOKEN=file-token\n"+
+		"GITHUB_USERNAME=file-user\n"+
+			"GITHUB_TOKEN=file-token\n"+
 			"HTTP_ADDRESS=:7000\n",
 	)
 
@@ -67,8 +69,9 @@ func TestLoadFromFile(t *testing.T) {
 	}
 
 	want := Config{
-		GitHubToken: "file-token",
-		HTTPAddress: ":7000",
+		GitHubToken:    "file-token",
+		GitHubUsername: "file-user",
+		HTTPAddress:    ":7000",
 	}
 
 	if got != want {
@@ -81,12 +84,14 @@ func TestLoadFromFile(t *testing.T) {
 }
 
 func TestLoadEnvironmentTakesPrecedence(t *testing.T) {
+	t.Setenv("GITHUB_USERNAME", "environment-user")
 	t.Setenv("GITHUB_TOKEN", "environment-token")
-	t.Setenv("HTTP_ADDRESS", ":8000")
+	t.Setenv("HTTP_ADDRESS", ":7000")
 
 	filename := writeTestEnv(
 		t,
-		"GITHUB_TOKEN=file-token\n"+
+		"GITHUB_USERNAME=file-user\n"+
+			"GITHUB_TOKEN=file-token\n"+
 			"HTTP_ADDRESS=:7000\n",
 	)
 
@@ -96,8 +101,9 @@ func TestLoadEnvironmentTakesPrecedence(t *testing.T) {
 	}
 
 	want := Config{
-		GitHubToken: "environment-token",
-		HTTPAddress: ":8000",
+		GitHubToken:    "environment-token",
+		GitHubUsername: "environment-user",
+		HTTPAddress:    ":7000",
 	}
 
 	if got != want {
@@ -110,12 +116,14 @@ func TestLoadEnvironmentTakesPrecedence(t *testing.T) {
 }
 
 func TestLoadUsesDefaultAddress(t *testing.T) {
+	unsetEnvironment(t, "GITHUB_USERNAME")
 	unsetEnvironment(t, "GITHUB_TOKEN")
 	unsetEnvironment(t, "HTTP_ADDRESS")
 
 	filename := writeTestEnv(
 		t,
-		"GITHUB_TOKEN=file-token\n",
+		"GITHUB_USERNAME=file-user\n"+
+			"GITHUB_TOKEN=file-token\n",
 	)
 
 	got, err := load(filename)
@@ -133,10 +141,11 @@ func TestLoadUsesDefaultAddress(t *testing.T) {
 }
 
 func TestLoadRequiresGitHubToken(t *testing.T) {
+	unsetEnvironment(t, "GITHUB_USERNAME")
 	unsetEnvironment(t, "GITHUB_TOKEN")
 	unsetEnvironment(t, "HTTP_ADDRESS")
 
-	filename := writeTestEnv(t, "")
+	filename := writeTestEnv(t, "GITHUB_USERNAME=file-user\n"+"")
 
 	config, err := load(filename)
 	if err == nil {
@@ -156,6 +165,7 @@ func TestLoadRequiresGitHubToken(t *testing.T) {
 }
 
 func TestLoadRejectsMalformedFile(t *testing.T) {
+	unsetEnvironment(t, "GITHUB_USERNAME")
 	unsetEnvironment(t, "GITHUB_TOKEN")
 	unsetEnvironment(t, "HTTP_ADDRESS")
 

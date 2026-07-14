@@ -42,6 +42,7 @@ func TestHealthHandler(t *testing.T) {
 }
 
 func TestRunRequiresGitHubToken(t *testing.T) {
+	t.Setenv("GITHUB_USERNAME", "test-user")
 	t.Setenv("GITHUB_TOKEN", "")
 
 	logger := slog.New(

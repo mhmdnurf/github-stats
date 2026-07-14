@@ -7,21 +7,25 @@ import (
 
 func TestResolveTheme(t *testing.T) {
 	defaultTheme := Theme{
-		Name:       "default",
+		Name:       DefaultTheme,
 		Background: "#0d1117",
 		Border:     "#30363d",
 		Title:      "#f0f6fc",
-		Text:       "#8b949e",
-		Accent:     "#2f81f7",
+		Text:       "#7d8590",
+		Value:      "#e6edf3",
+		Accent:     "#3fb950",
+		Track:      "#21262d",
 	}
 
 	lightTheme := Theme{
-		Name:       "light",
+		Name:       LightTheme,
 		Background: "#ffffff",
 		Border:     "#d0d7de",
 		Title:      "#1f2328",
 		Text:       "#656d76",
+		Value:      "#1f2328",
 		Accent:     "#0969da",
+		Track:      "#eaeef2",
 	}
 
 	tests := []struct {

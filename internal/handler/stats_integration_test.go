@@ -24,6 +24,8 @@ type integrationFetcher struct {
 	usernames []string
 }
 
+const configuredTestUsername = "mhmdnurf"
+
 func (fetcher *integrationFetcher) Fetch(
 	ctx context.Context,
 	username string,
@@ -86,6 +88,7 @@ func TestStatsHandlerEndToEnd(t *testing.T) {
 	)
 
 	statsHandler, err := handler.NewStats(
+		configuredTestUsername,
 		service,
 		renderer,
 		logger,
@@ -202,15 +205,15 @@ func TestStatsHandlerEndToEnd(t *testing.T) {
 		expectedValues := []string{
 			"Muhammad Nurfatkhur Rahman",
 			"@mhmdnurf",
-			"Repositories",
+			"REPOSITORIES",
 			"101",
-			"Stars",
+			"STARS",
 			"202",
-			"Commits",
+			"COMMITS",
 			"303",
-			"Pull Requests",
+			"PULL REQUESTS",
 			"404",
-			"Followers",
+			"FOLLOWERS",
 			"505",
 			"#ffffff",
 			"#0969da",

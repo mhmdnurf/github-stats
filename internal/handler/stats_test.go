@@ -7,12 +7,15 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"strings"
 	"testing"
 
 	"github.com/mhmdnurf/github-stats/internal/card"
 	"github.com/mhmdnurf/github-stats/internal/stats"
 )
+
+const configuredTestUsername = "mhmdnurf"
 
 type statsServiceStub struct {
 	get func(context.Context, string) (stats.UserStats, error)
@@ -125,13 +128,63 @@ func TestValidGitHubUsername(t *testing.T) {
 	}
 }
 
+func TestNewStatsRejectsInvalidUsername(t *testing.T) {
+	tests := []struct {
+		name     string
+		username string
+	}{
+		{
+			name:     "empty",
+			username: "",
+		},
+		{
+			name:     "whitespace",
+			username: "   ",
+		},
+		{
+			name:     "contains underscore",
+			username: "invalid_user",
+		},
+		{
+			name:     "too long",
+			username: strings.Repeat("a", 40),
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			handler, err := NewStats(
+				test.username,
+				statsServiceStub{},
+				cardRendererStub{},
+				testLogger(),
+			)
+
+			if err == nil {
+				t.Fatal("expected invalid username error")
+			}
+
+			if handler != nil {
+				t.Fatalf("expected nil handler, got %+v", handler)
+			}
+
+			if !strings.Contains(
+				err.Error(),
+				"valid GitHub username is required",
+			) {
+				t.Fatalf("unexpected error: %v", err)
+			}
+		})
+	}
+}
+
 func TestStatsHandlerReturnsSVG(t *testing.T) {
 	type contextKey string
 	const requestKey contextKey = "request-id"
 
 	wantStats := stats.UserStats{
-		Name:     "Muhammad Nurfatkhur Rahman",
-		Username: "mhmdnurf",
+		Name:     "Test User",
+		Username: configuredTestUsername,
 		Stars:    128,
 	}
 	wantDocument := []byte("<svg></svg>")
@@ -141,8 +194,12 @@ func TestStatsHandlerReturnsSVG(t *testing.T) {
 			ctx context.Context,
 			username string,
 		) (stats.UserStats, error) {
-			if username != "MHMDNURF" {
-				t.Fatalf("unexpected username: %q", username)
+			if username != configuredTestUsername {
+				t.Fatalf(
+					"unexpected username: got %q, want %q",
+					username,
+					configuredTestUsername,
+				)
 			}
 
 			if ctx.Value(requestKey) != "request-123" {
@@ -158,7 +215,7 @@ func TestStatsHandlerReturnsSVG(t *testing.T) {
 			userStats stats.UserStats,
 			themeName string,
 		) ([]byte, error) {
-			if userStats != wantStats {
+			if !reflect.DeepEqual(userStats, wantStats) {
 				t.Fatalf(
 					"unexpected stats: got %+v, want %+v",
 					userStats,
@@ -174,14 +231,19 @@ func TestStatsHandlerReturnsSVG(t *testing.T) {
 		},
 	}
 
-	handler, err := NewStats(service, renderer, testLogger())
+	handler, err := NewStats(
+		"  "+configuredTestUsername+"  ",
+		service,
+		renderer,
+		testLogger(),
+	)
 	if err != nil {
 		t.Fatalf("create handler: %v", err)
 	}
 
 	request := httptest.NewRequest(
 		http.MethodGet,
-		"/stats?username=%20MHMDNURF%20&theme=light",
+		"/stats?theme=light",
 		nil,
 	)
 	request = request.WithContext(
@@ -229,8 +291,66 @@ func TestStatsHandlerReturnsSVG(t *testing.T) {
 	}
 }
 
+func TestStatsHandlerDoesNotAllowUsernameOverride(t *testing.T) {
+	service := statsServiceStub{
+		get: func(
+			_ context.Context,
+			username string,
+		) (stats.UserStats, error) {
+			if username != configuredTestUsername {
+				t.Fatalf(
+					"username was overridden: got %q, want %q",
+					username,
+					configuredTestUsername,
+				)
+			}
+
+			return stats.UserStats{
+				Username: configuredTestUsername,
+			}, nil
+		},
+	}
+
+	renderer := cardRendererStub{
+		render: func(
+			stats.UserStats,
+			string,
+		) ([]byte, error) {
+			return []byte("<svg></svg>"), nil
+		},
+	}
+
+	handler, err := NewStats(
+		configuredTestUsername,
+		service,
+		renderer,
+		testLogger(),
+	)
+	if err != nil {
+		t.Fatalf("create handler: %v", err)
+	}
+
+	request := httptest.NewRequest(
+		http.MethodGet,
+		"/stats?username=another-user",
+		nil,
+	)
+	response := httptest.NewRecorder()
+
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf(
+			"unexpected status: got %d, want %d",
+			response.Code,
+			http.StatusOK,
+		)
+	}
+}
+
 func TestStatsHandlerRejectsUnsupportedMethod(t *testing.T) {
 	handler, err := NewStats(
+		configuredTestUsername,
 		statsServiceStub{
 			get: func(
 				context.Context,
@@ -257,7 +377,7 @@ func TestStatsHandlerRejectsUnsupportedMethod(t *testing.T) {
 
 	request := httptest.NewRequest(
 		http.MethodPost,
-		"/stats?username=mhmdnurf",
+		"/stats",
 		nil,
 	)
 	response := httptest.NewRecorder()
@@ -281,54 +401,6 @@ func TestStatsHandlerRejectsUnsupportedMethod(t *testing.T) {
 	}
 
 	if response.Body.String() != "method not allowed\n" {
-		t.Fatalf("unexpected body: %q", response.Body.String())
-	}
-}
-
-func TestStatsHandlerRejectsInvalidUsername(t *testing.T) {
-	handler, err := NewStats(
-		statsServiceStub{
-			get: func(
-				context.Context,
-				string,
-			) (stats.UserStats, error) {
-				t.Fatal("service should not be called")
-				return stats.UserStats{}, nil
-			},
-		},
-		cardRendererStub{
-			render: func(
-				stats.UserStats,
-				string,
-			) ([]byte, error) {
-				t.Fatal("renderer should not be called")
-				return nil, nil
-			},
-		},
-		testLogger(),
-	)
-	if err != nil {
-		t.Fatalf("create handler: %v", err)
-	}
-
-	request := httptest.NewRequest(
-		http.MethodGet,
-		"/stats?username=invalid_name",
-		nil,
-	)
-	response := httptest.NewRecorder()
-
-	handler.ServeHTTP(response, request)
-
-	if response.Code != http.StatusBadRequest {
-		t.Fatalf(
-			"unexpected status: got %d, want %d",
-			response.Code,
-			http.StatusBadRequest,
-		)
-	}
-
-	if response.Body.String() != "invalid GitHub username\n" {
 		t.Fatalf("unexpected body: %q", response.Body.String())
 	}
 }
@@ -380,13 +452,14 @@ func TestStatsHandlerMapsErrors(t *testing.T) {
 			rendererCalls := 0
 
 			handler, err := NewStats(
+				configuredTestUsername,
 				statsServiceStub{
 					get: func(
 						context.Context,
 						string,
 					) (stats.UserStats, error) {
 						return stats.UserStats{
-							Username: "mhmdnurf",
+							Username: configuredTestUsername,
 						}, test.serviceError
 					},
 				},
@@ -407,7 +480,7 @@ func TestStatsHandlerMapsErrors(t *testing.T) {
 
 			request := httptest.NewRequest(
 				http.MethodGet,
-				"/stats?username=mhmdnurf",
+				"/stats",
 				nil,
 			)
 			response := httptest.NewRecorder()
@@ -450,6 +523,7 @@ func TestStatsHandlerMapsErrors(t *testing.T) {
 
 func TestStatsHandlerRejectsUnknownThemeBeforeService(t *testing.T) {
 	handler, err := NewStats(
+		configuredTestUsername,
 		statsServiceStub{
 			get: func(
 				context.Context,
@@ -476,7 +550,7 @@ func TestStatsHandlerRejectsUnknownThemeBeforeService(t *testing.T) {
 
 	request := httptest.NewRequest(
 		http.MethodGet,
-		"/stats?username=mhmdnurf&theme=unknown",
+		"/stats?theme=unknown",
 		nil,
 	)
 	response := httptest.NewRecorder()
@@ -502,11 +576,20 @@ func TestStatsHandlerRejectsUnknownThemeBeforeService(t *testing.T) {
 
 func TestStatsHandlerMapsDeadlineExceeded(t *testing.T) {
 	handler, err := NewStats(
+		configuredTestUsername,
 		statsServiceStub{
 			get: func(
 				ctx context.Context,
-				_ string,
+				username string,
 			) (stats.UserStats, error) {
+				if username != configuredTestUsername {
+					t.Fatalf(
+						"unexpected username: got %q, want %q",
+						username,
+						configuredTestUsername,
+					)
+				}
+
 				if _, found := ctx.Deadline(); !found {
 					t.Fatal("expected request deadline")
 				}
@@ -531,7 +614,7 @@ func TestStatsHandlerMapsDeadlineExceeded(t *testing.T) {
 
 	request := httptest.NewRequest(
 		http.MethodGet,
-		"/stats?username=mhmdnurf",
+		"/stats",
 		nil,
 	)
 	response := httptest.NewRecorder()
@@ -557,11 +640,20 @@ func TestStatsHandlerMapsDeadlineExceeded(t *testing.T) {
 
 func TestStatsHandlerStopsWhenRequestIsCanceled(t *testing.T) {
 	handler, err := NewStats(
+		configuredTestUsername,
 		statsServiceStub{
 			get: func(
 				ctx context.Context,
-				_ string,
+				username string,
 			) (stats.UserStats, error) {
+				if username != configuredTestUsername {
+					t.Fatalf(
+						"unexpected username: got %q, want %q",
+						username,
+						configuredTestUsername,
+					)
+				}
+
 				if !errors.Is(ctx.Err(), context.Canceled) {
 					t.Fatalf(
 						"expected canceled context, got %v",
@@ -589,7 +681,7 @@ func TestStatsHandlerStopsWhenRequestIsCanceled(t *testing.T) {
 
 	request := httptest.NewRequest(
 		http.MethodGet,
-		"/stats?username=mhmdnurf",
+		"/stats",
 		nil,
 	)
 
