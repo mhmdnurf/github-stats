@@ -8,6 +8,7 @@
 [Usage](#usage) ·
 [Configuration](#configuration) ·
 [API](#api) ·
+[Deployment](#deployment) ·
 [Development](#development)
 
 </div>
@@ -250,6 +251,12 @@ docker compose down
 
 The container runs as a non-root user with a read-only filesystem, dropped Linux
 capabilities, and the `no-new-privileges` security option.
+
+## Deployment
+
+Terraform and a one-command deployment script are available for Google Cloud
+Run. See [terraform/README.md](terraform/README.md) for the initial setup and
+GitHub Actions configuration.
 
 ## Development
 

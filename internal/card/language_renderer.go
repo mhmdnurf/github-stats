@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/mhmdnurf/github-stats/internal/languages"
+	repositoryScope "github.com/mhmdnurf/github-stats/internal/repository"
 )
 
 const (
@@ -23,10 +24,11 @@ type LanguageRenderer struct {
 }
 
 type languageRenderData struct {
-	Username string
-	Theme    Theme
-	HasRows  bool
-	Rows     []languageRow
+	Username        string
+	RepositoryLabel string
+	Theme           Theme
+	HasRows         bool
+	Rows            []languageRow
 }
 
 type languageRow struct {
@@ -67,9 +69,10 @@ func (renderer *LanguageRenderer) Render(
 			strings.TrimSpace(userLanguages.Username),
 			39,
 		),
-		Theme:   theme,
-		HasRows: len(rows) > 0,
-		Rows:    rows,
+		RepositoryLabel: languageRepositoryLabel(userLanguages.Scope),
+		Theme:           theme,
+		HasRows:         len(rows) > 0,
+		Rows:            rows,
 	}
 
 	var output bytes.Buffer
@@ -78,6 +81,14 @@ func (renderer *LanguageRenderer) Render(
 	}
 
 	return output.Bytes(), nil
+}
+
+func languageRepositoryLabel(scope repositoryScope.Scope) string {
+	if scope == repositoryScope.ScopeAll {
+		return "all active repositories"
+	}
+
+	return "public active repositories"
 }
 
 func buildLanguageRows(

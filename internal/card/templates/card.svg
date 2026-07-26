@@ -72,6 +72,7 @@
 
     <g class="stat stat-0">
         <text x="28" y="40" class="header" fill="{{.Theme.Title}}">{{.DisplayName}}</text>
+        <text x="28" y="60" class="sub" fill="{{.Theme.Text}}">@{{.Stats.Username}} · last 12 months</text>
     </g>
 
     <g class="stat stat-1">

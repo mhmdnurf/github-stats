@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/mhmdnurf/github-stats/internal/languages"
+	repositoryScope "github.com/mhmdnurf/github-stats/internal/repository"
 )
 
 func newTestLanguageRenderer(t *testing.T) *LanguageRenderer {
@@ -26,6 +27,7 @@ func TestLanguageRendererRender(t *testing.T) {
 	document, err := renderer.Render(
 		languages.UserLanguages{
 			Username: "mhmdnurf",
+			Scope:    repositoryScope.ScopePublic,
 			Languages: []languages.LanguageUsage{
 				{
 					Name:  "Go",
@@ -117,6 +119,29 @@ func TestLanguageRendererRender(t *testing.T) {
 
 	if !bytes.Contains(document, []byte(`width="147"`)) {
 		t.Fatal("expected a 60 percent progress bar width")
+	}
+}
+
+func TestLanguageRendererShowsAllRepositoryScope(t *testing.T) {
+	renderer := newTestLanguageRenderer(t)
+
+	document, err := renderer.Render(
+		languages.UserLanguages{
+			Username: "mhmdnurf",
+			Scope:    repositoryScope.ScopeAll,
+			Languages: []languages.LanguageUsage{
+				{Name: "Go", Color: "#00ADD8", Bytes: 100},
+			},
+		},
+		DefaultTheme,
+	)
+	if err != nil {
+		t.Fatalf("render language card: %v", err)
+	}
+
+	text := parseSVGText(t, document)
+	if !text["@mhmdnurf · all active repositories"] {
+		t.Fatal("expected the all-repositories subtitle")
 	}
 }
 

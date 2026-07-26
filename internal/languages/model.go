@@ -1,5 +1,7 @@
 package languages
 
+import repositoryScope "github.com/mhmdnurf/github-stats/internal/repository"
+
 type LanguageUsage struct {
 	Name  string
 	Color string
@@ -8,5 +10,6 @@ type LanguageUsage struct {
 
 type UserLanguages struct {
 	Username  string
+	Scope     repositoryScope.Scope
 	Languages []LanguageUsage
 }

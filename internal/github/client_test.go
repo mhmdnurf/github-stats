@@ -562,6 +562,7 @@ func TestClientFetchLanguages(t *testing.T) {
 
 	want := languages.UserLanguages{
 		Username: "mhmdnurf",
+		Scope:    repositoryScope.ScopePublic,
 		Languages: []languages.LanguageUsage{
 			{
 				Name:  "Go",
@@ -717,6 +718,7 @@ func TestClientFetchLanguagesPaginatesRepositories(t *testing.T) {
 
 	want := languages.UserLanguages{
 		Username: "mhmdnurf",
+		Scope:    repositoryScope.ScopePublic,
 		Languages: []languages.LanguageUsage{
 			{
 				Name:  "Go",

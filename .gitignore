@@ -8,3 +8,8 @@ graphify-out
 .claude
 .codex
 main
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example

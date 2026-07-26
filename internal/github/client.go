@@ -272,7 +272,9 @@ func (c *Client) FetchLanguages(
 	username string,
 	scope repositoryScope.Scope,
 ) (languages.UserLanguages, error) {
-	result := languages.UserLanguages{}
+	result := languages.UserLanguages{
+		Scope: scope,
+	}
 	totals := make(map[string]languages.LanguageUsage)
 
 	var cursor *string
