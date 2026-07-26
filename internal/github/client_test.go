@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/mhmdnurf/github-stats/internal/languages"
 	"github.com/mhmdnurf/github-stats/internal/stats"
 )
 
@@ -396,5 +397,444 @@ func TestNewClientNormalizesToken(t *testing.T) {
 
 	if client.httpClient != httpClient {
 		t.Fatal("expected the supplied HTTP client")
+	}
+}
+
+func TestClientFetchLanguages(t *testing.T) {
+	httpClient := &http.Client{
+		Transport: roundTripFunc(func(request *http.Request) (*http.Response, error) {
+			var payload graphqlRequest
+			if err := json.NewDecoder(request.Body).Decode(&payload); err != nil {
+				t.Fatalf("decode request: %v", err)
+			}
+
+			if payload.Query != userLanguagesQuery {
+				t.Fatal("expected the languages GraphQL query")
+			}
+
+			if payload.Variables["username"] != "mhmdnurf" {
+				t.Fatalf(
+					"unexpected username: %v",
+					payload.Variables["username"],
+				)
+			}
+
+			if payload.Variables["cursor"] != nil {
+				t.Fatalf(
+					"expected nil first cursor, got %v",
+					payload.Variables["cursor"],
+				)
+			}
+
+			body := `{
+				"data": {
+					"user": {
+						"login": "mhmdnurf",
+						"repositories": {
+							"nodes": [
+								{
+									"isFork": false,
+									"isArchived": false,
+									"languages": {
+										"edges": [
+											{
+												"size": 100,
+												"node": {
+													"name": "Go",
+													"color": "#00ADD8"
+												}
+											},
+											{
+												"size": 50,
+												"node": {
+													"name": "TypeScript",
+													"color": "#3178C6"
+												}
+											},
+											{
+												"size": 3,
+												"node": {
+													"name": "",
+													"color": null
+												}
+											}
+										]
+									}
+								},
+								{
+									"isFork": true,
+									"isArchived": false,
+									"languages": {
+										"edges": [
+											{
+												"size": 999,
+												"node": {
+													"name": "Go",
+													"color": "#00ADD8"
+												}
+											}
+										]
+									}
+								},
+								{
+									"isFork": false,
+									"isArchived": true,
+									"languages": {
+										"edges": [
+											{
+												"size": 888,
+												"node": {
+													"name": "Rust",
+													"color": "#DEA584"
+												}
+											}
+										]
+									}
+								},
+								{
+									"isFork": false,
+									"isArchived": false,
+									"languages": {
+										"edges": [
+											{
+												"size": 25,
+												"node": {
+													"name": "Go",
+													"color": "#00ADD8"
+												}
+											},
+											{
+												"size": 75,
+												"node": {
+													"name": "TypeScript",
+													"color": "#3178C6"
+												}
+											},
+											{
+												"size": 25,
+												"node": {
+													"name": "Python",
+													"color": "#3572A5"
+												}
+											},
+											{
+												"size": 0,
+												"node": {
+													"name": "Shell",
+													"color": "#89E051"
+												}
+											}
+										]
+									}
+								}
+							],
+							"pageInfo": {
+								"hasNextPage": false,
+								"endCursor": null
+							}
+						}
+					}
+				}
+			}`
+
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Header:     make(http.Header),
+				Body:       io.NopCloser(strings.NewReader(body)),
+			}, nil
+		}),
+	}
+
+	client, err := NewClient("test-token", httpClient)
+	if err != nil {
+		t.Fatalf("create client: %v", err)
+	}
+
+	got, err := client.FetchLanguages(
+		context.Background(),
+		"mhmdnurf",
+	)
+	if err != nil {
+		t.Fatalf("fetch languages: %v", err)
+	}
+
+	want := languages.UserLanguages{
+		Username: "mhmdnurf",
+		Languages: []languages.LanguageUsage{
+			{
+				Name:  "Go",
+				Color: "#00ADD8",
+				Bytes: 125,
+			},
+			{
+				Name:  "TypeScript",
+				Color: "#3178C6",
+				Bytes: 125,
+			},
+			{
+				Name:  "Python",
+				Color: "#3572A5",
+				Bytes: 25,
+			},
+		},
+	}
+
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("unexpected languages: got %+v, want %+v", got, want)
+	}
+}
+
+func TestClientFetchLanguagesPaginatesRepositories(t *testing.T) {
+	requestCount := 0
+
+	httpClient := &http.Client{
+		Transport: roundTripFunc(func(request *http.Request) (*http.Response, error) {
+			requestCount++
+
+			var payload graphqlRequest
+			if err := json.NewDecoder(request.Body).Decode(&payload); err != nil {
+				t.Fatalf("decode request: %v", err)
+			}
+
+			if payload.Query != userLanguagesQuery {
+				t.Fatal("expected the languages GraphQL query")
+			}
+
+			var body string
+
+			switch requestCount {
+			case 1:
+				if payload.Variables["cursor"] != nil {
+					t.Fatalf(
+						"expected nil first cursor, got %v",
+						payload.Variables["cursor"],
+					)
+				}
+
+				body = `{
+					"data": {
+						"user": {
+							"login": "mhmdnurf",
+							"repositories": {
+								"nodes": [
+									{
+										"isFork": false,
+										"isArchived": false,
+										"languages": {
+											"edges": [
+												{
+													"size": 100,
+													"node": {
+														"name": "Go",
+														"color": "#00ADD8"
+													}
+												}
+											]
+										}
+									}
+								],
+								"pageInfo": {
+									"hasNextPage": true,
+									"endCursor": "cursor-1"
+								}
+							}
+						}
+					}
+				}`
+
+			case 2:
+				if payload.Variables["cursor"] != "cursor-1" {
+					t.Fatalf(
+						"expected cursor-1, got %v",
+						payload.Variables["cursor"],
+					)
+				}
+
+				body = `{
+					"data": {
+						"user": {
+							"repositories": {
+								"nodes": [
+									{
+										"isFork": false,
+										"isArchived": false,
+										"languages": {
+											"edges": [
+												{
+													"size": 25,
+													"node": {
+														"name": "Go",
+														"color": "#00ADD8"
+													}
+												},
+												{
+													"size": 50,
+													"node": {
+														"name": "Rust",
+														"color": "#DEA584"
+													}
+												}
+											]
+										}
+									}
+								],
+								"pageInfo": {
+									"hasNextPage": false,
+									"endCursor": null
+								}
+							}
+						}
+					}
+				}`
+
+			default:
+				t.Fatalf("unexpected request number: %d", requestCount)
+			}
+
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Header:     make(http.Header),
+				Body:       io.NopCloser(strings.NewReader(body)),
+			}, nil
+		}),
+	}
+
+	client, err := NewClient("test-token", httpClient)
+	if err != nil {
+		t.Fatalf("create client: %v", err)
+	}
+
+	got, err := client.FetchLanguages(context.Background(), "mhmdnurf")
+	if err != nil {
+		t.Fatalf("fetch languages: %v", err)
+	}
+
+	if requestCount != 2 {
+		t.Fatalf("expected 2 requests, got %d", requestCount)
+	}
+
+	want := languages.UserLanguages{
+		Username: "mhmdnurf",
+		Languages: []languages.LanguageUsage{
+			{
+				Name:  "Go",
+				Color: "#00ADD8",
+				Bytes: 125,
+			},
+			{
+				Name:  "Rust",
+				Color: "#DEA584",
+				Bytes: 50,
+			},
+		},
+	}
+
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("unexpected languages: got %+v, want %+v", got, want)
+	}
+}
+
+func TestClientFetchLanguagesErrors(t *testing.T) {
+	tests := []struct {
+		name          string
+		statusCode    int
+		body          string
+		wantError     error
+		errorContains string
+	}{
+		{
+			name:       "user not found",
+			statusCode: http.StatusOK,
+			body: `{
+				"data": {
+					"user": null
+				}
+			}`,
+			wantError: languages.ErrUserNotFound,
+		},
+		{
+			name:       "graphql error",
+			statusCode: http.StatusOK,
+			body: `{
+				"errors": [
+					{"message": "rate limit exceeded"}
+				]
+			}`,
+			errorContains: "github graphql error: rate limit exceeded",
+		},
+		{
+			name:          "http error",
+			statusCode:    http.StatusUnauthorized,
+			body:          `{}`,
+			errorContains: "HTTP status 401",
+		},
+		{
+			name:       "missing pagination cursor",
+			statusCode: http.StatusOK,
+			body: `{
+				"data": {
+					"user": {
+						"login": "mhmdnurf",
+						"repositories": {
+							"nodes": [],
+							"pageInfo": {
+								"hasNextPage": true,
+								"endCursor": null
+							}
+						}
+					}
+				}
+			}`,
+			errorContains: "without an end cursor",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			httpClient := &http.Client{
+				Transport: roundTripFunc(
+					func(*http.Request) (*http.Response, error) {
+						return &http.Response{
+							StatusCode: test.statusCode,
+							Header:     make(http.Header),
+							Body: io.NopCloser(
+								strings.NewReader(test.body),
+							),
+						}, nil
+					},
+				),
+			}
+
+			client, err := NewClient("test-token", httpClient)
+			if err != nil {
+				t.Fatalf("create client: %v", err)
+			}
+
+			_, err = client.FetchLanguages(
+				context.Background(),
+				"mhmdnurf",
+			)
+			if err == nil {
+				t.Fatal("expected an error")
+			}
+
+			if test.wantError != nil &&
+				!errors.Is(err, test.wantError) {
+				t.Fatalf(
+					"expected error %v, got %v",
+					test.wantError,
+					err,
+				)
+			}
+
+			if test.errorContains != "" &&
+				!strings.Contains(err.Error(), test.errorContains) {
+				t.Fatalf(
+					"expected error containing %q, got %q",
+					test.errorContains,
+					err,
+				)
+			}
+		})
 	}
 }

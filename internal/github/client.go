@@ -7,8 +7,10 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"sort"
 	"strings"
 
+	"github.com/mhmdnurf/github-stats/internal/languages"
 	"github.com/mhmdnurf/github-stats/internal/stats"
 )
 
@@ -20,6 +22,7 @@ type Client struct {
 }
 
 var _ stats.Fetcher = (*Client)(nil)
+var _ languages.Fetcher = (*Client)(nil)
 
 func NewClient(token string, httpClient *http.Client) (*Client, error) {
 	normalizedToken := strings.TrimSpace(token)
@@ -77,6 +80,41 @@ query UserStats($username: String!, $cursor: String) {
 }
 `
 
+const userLanguagesQuery = `
+query UserLanguages($username: String!, $cursor: String) {
+	user(login: $username) {
+		login
+		repositories(
+			first: 100
+			after: $cursor
+			ownerAffiliations: OWNER
+			privacy: PUBLIC
+		) {
+			nodes {
+				isFork
+				isArchived
+				languages(
+					first: 100
+					orderBy: {field: SIZE, direction: DESC}
+				) {
+					edges {
+						size
+						node {
+							name
+							color
+						}
+					}
+				}
+			}
+			pageInfo {
+				hasNextPage
+				endCursor
+			}
+		}
+	}
+}
+`
+
 type graphqlRequest struct {
 	Query     string         `json:"query"`
 	Variables map[string]any `json:"variables"`
@@ -107,7 +145,24 @@ type repositoryConnection struct {
 }
 
 type repository struct {
-	StargazerCount int `json:"stargazerCount"`
+	StargazerCount int                `json:"stargazerCount"`
+	IsFork         bool               `json:"isFork"`
+	IsArchived     bool               `json:"isArchived"`
+	Languages      languageConnection `json:"languages"`
+}
+
+type languageConnection struct {
+	Edges []languageEdge `json:"edges"`
+}
+
+type languageEdge struct {
+	Size int64        `json:"size"`
+	Node languageNode `json:"node"`
+}
+
+type languageNode struct {
+	Name  string  `json:"name"`
+	Color *string `json:"color"`
 }
 
 type pageInfo struct {
@@ -207,6 +262,86 @@ func (c *Client) Fetch(ctx context.Context, username string) (stats.UserStats, e
 	return result, nil
 }
 
+func (c *Client) FetchLanguages(
+	ctx context.Context,
+	username string,
+) (languages.UserLanguages, error) {
+	result := languages.UserLanguages{}
+	totals := make(map[string]languages.LanguageUsage)
+
+	var cursor *string
+	firstPage := true
+
+	for {
+		user, err := c.fetchLanguagesPage(ctx, username, cursor)
+		if err != nil {
+			return languages.UserLanguages{}, err
+		}
+
+		if firstPage {
+			result.Username = user.Login
+			firstPage = false
+		}
+
+		for _, repository := range user.Repositories.Nodes {
+			if repository.IsFork || repository.IsArchived {
+				continue
+			}
+
+			for _, edge := range repository.Languages.Edges {
+				name := strings.TrimSpace(edge.Node.Name)
+				if name == "" || edge.Size <= 0 {
+					continue
+				}
+
+				usage := totals[name]
+				usage.Name = name
+				usage.Bytes += edge.Size
+
+				if usage.Color == "" && edge.Node.Color != nil {
+					usage.Color = *edge.Node.Color
+				}
+
+				totals[name] = usage
+			}
+		}
+
+		if !user.Repositories.PageInfo.HasNextPage {
+			break
+		}
+
+		if user.Repositories.PageInfo.EndCursor == nil {
+			return languages.UserLanguages{}, errors.New(
+				"github returned a repository page without an end cursor",
+			)
+		}
+
+		cursor = user.Repositories.PageInfo.EndCursor
+	}
+
+	result.Languages = make(
+		[]languages.LanguageUsage,
+		0,
+		len(totals),
+	)
+
+	for _, usage := range totals {
+		result.Languages = append(result.Languages, usage)
+	}
+
+	sort.Slice(result.Languages, func(left, right int) bool {
+		if result.Languages[left].Bytes == result.Languages[right].Bytes {
+			return result.Languages[left].Name <
+				result.Languages[right].Name
+		}
+
+		return result.Languages[left].Bytes >
+			result.Languages[right].Bytes
+	})
+
+	return result, nil
+}
+
 func (c *Client) fetchPage(
 	ctx context.Context,
 	username string,
@@ -268,6 +403,72 @@ func (c *Client) fetchPage(
 
 	if graphqlResult.Data.User == nil {
 		return nil, ErrUserNotFound
+	}
+
+	return graphqlResult.Data.User, nil
+}
+
+func (c *Client) fetchLanguagesPage(
+	ctx context.Context,
+	username string,
+	cursor *string,
+) (*graphqlUser, error) {
+	payload := graphqlRequest{
+		Query: userLanguagesQuery,
+		Variables: map[string]any{
+			"username": username,
+			"cursor":   cursor,
+		},
+	}
+
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return nil, fmt.Errorf("encode github graphql request: %w", err)
+	}
+
+	request, err := http.NewRequestWithContext(
+		ctx,
+		http.MethodPost,
+		graphqlEndpoint,
+		bytes.NewReader(body),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("create github graphql request: %w", err)
+	}
+
+	request.Header.Set("Authorization", "Bearer "+c.token)
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("Accept", "application/json")
+	request.Header.Set("User-Agent", "github-stats")
+
+	response, err := c.httpClient.Do(request)
+	if err != nil {
+		return nil, fmt.Errorf("execute github graphql request: %w", err)
+	}
+	defer response.Body.Close()
+
+	if response.StatusCode < http.StatusOK ||
+		response.StatusCode >= http.StatusMultipleChoices {
+		return nil, fmt.Errorf(
+			"github graphql returned HTTP status %d",
+			response.StatusCode,
+		)
+	}
+
+	var graphqlResult graphqlResponse
+	if err := json.NewDecoder(response.Body).Decode(&graphqlResult); err != nil {
+		return nil, fmt.Errorf("decode github graphql response: %w", err)
+	}
+
+	if len(graphqlResult.Errors) > 0 {
+		return nil, fmt.Errorf(
+			"github graphql error: %s",
+			graphqlResult.Errors[0].Message,
+		)
+	}
+
+	if graphqlResult.Data.User == nil {
+		return nil, languages.ErrUserNotFound
 	}
 
 	return graphqlResult.Data.User, nil

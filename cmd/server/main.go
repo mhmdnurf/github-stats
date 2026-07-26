@@ -16,12 +16,14 @@ import (
 	"github.com/mhmdnurf/github-stats/internal/config"
 	githubclient "github.com/mhmdnurf/github-stats/internal/github"
 	"github.com/mhmdnurf/github-stats/internal/handler"
+	"github.com/mhmdnurf/github-stats/internal/languages"
 	"github.com/mhmdnurf/github-stats/internal/stats"
 )
 
 const (
 	githubRequestTimeout = 15 * time.Second
 	statsCacheTTL        = 10 * time.Minute
+	languagesCacheTTL    = 10 * time.Minute
 	shutdownTimeout      = 10 * time.Second
 )
 
@@ -74,9 +76,25 @@ func run(logger *slog.Logger) error {
 		return fmt.Errorf("create stats service: %w", err)
 	}
 
+	languageMemoryCache := cache.NewLanguageMemory()
+
+	languagesService, err := languages.NewService(
+		githubClient,
+		languageMemoryCache,
+		languagesCacheTTL,
+	)
+	if err != nil {
+		return fmt.Errorf("create languages service: %w", err)
+	}
+
 	cardRenderer, err := card.NewRenderer()
 	if err != nil {
 		return fmt.Errorf("create card renderer: %w", err)
+	}
+
+	languageRenderer, err := card.NewLanguageRenderer()
+	if err != nil {
+		return fmt.Errorf("create language renderer: %w", err)
 	}
 
 	statsHandler, err := handler.NewStats(
@@ -89,8 +107,19 @@ func run(logger *slog.Logger) error {
 		return fmt.Errorf("create stats handler: %w", err)
 	}
 
+	languagesHandler, err := handler.NewLanguages(
+		configuration.GitHubUsername,
+		languagesService,
+		languageRenderer,
+		logger,
+	)
+	if err != nil {
+		return fmt.Errorf("create languages handler: %w", err)
+	}
+
 	mux := http.NewServeMux()
 	mux.Handle("/stats", statsHandler)
+	mux.Handle("/languages", languagesHandler)
 	mux.HandleFunc("/healthz", healthHandler)
 
 	server := &http.Server{

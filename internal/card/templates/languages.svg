@@ -1,0 +1,121 @@
+<svg
+        xmlns="http://www.w3.org/2000/svg"
+        width="495"
+        height="240"
+        viewBox="0 0 495 240"
+        role="img"
+        aria-label="{{.Username}} most used programming languages"
+>
+    <title>{{.Username}} most used programming languages</title>
+
+    <style>
+        text {
+        font-family: -apple-system, BlinkMacSystemFont,
+        "Segoe UI", Ubuntu, sans-serif;
+        }
+
+        .header {
+        font-size: 18px;
+        font-weight: 600;
+        }
+
+        .sub {
+        font-size: 11.5px;
+        font-weight: 400;
+        }
+
+        .language {
+        font-size: 13px;
+        font-weight: 500;
+        }
+
+        .percentage {
+        font-size: 12px;
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+        * {
+        animation: none !important;
+        }
+        }
+    </style>
+
+    <rect
+            x="0.5"
+            y="0.5"
+            width="494"
+            height="239"
+            rx="10"
+            fill="{{.Theme.Background}}"
+            stroke="{{.Theme.Border}}"
+    />
+
+    <text
+            x="28"
+            y="42"
+            class="header"
+            fill="{{.Theme.Title}}"
+    >Most Used Languages</text>
+
+    <text
+            x="28"
+            y="61"
+            class="sub"
+            fill="{{.Theme.Text}}"
+    >@{{.Username}} · public active repositories</text>
+
+    {{if .HasRows}}
+    {{range .Rows}}
+    <circle
+            cx="34"
+            cy="{{.Y}}"
+            r="5"
+            fill="{{.Color}}"
+    />
+
+    <text
+            x="48"
+            y="{{.Y}}"
+            class="language"
+            fill="{{$.Theme.Value}}"
+            dominant-baseline="middle"
+    >{{.Name}}</text>
+
+    <text
+            x="467"
+            y="{{.Y}}"
+            class="percentage"
+            fill="{{$.Theme.Text}}"
+            text-anchor="end"
+            dominant-baseline="middle"
+    >{{.Percentage}}</text>
+
+    <rect
+            x="170"
+            y="{{.BarY}}"
+            width="245"
+            height="8"
+            rx="4"
+            fill="{{$.Theme.Track}}"
+    />
+
+    <rect
+            x="170"
+            y="{{.BarY}}"
+            width="{{.Width}}"
+            height="8"
+            rx="4"
+            fill="{{.Color}}"
+    />
+    {{end}}
+    {{else}}
+    <text
+            x="28"
+            y="128"
+            class="language"
+            fill="{{.Theme.Text}}"
+    >No language data available</text>
+    {{end}}
+</svg>
