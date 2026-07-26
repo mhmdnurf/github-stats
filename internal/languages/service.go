@@ -19,6 +19,7 @@ type Fetcher interface {
 	FetchLanguages(
 		ctx context.Context,
 		username string,
+		scope RepositoryScope,
 	) (UserLanguages, error)
 }
 
@@ -71,14 +72,14 @@ func NewService(
 func (s *Service) Get(
 	ctx context.Context,
 	username string,
+	scope RepositoryScope,
 ) (UserLanguages, error) {
 	normalizedUsername := strings.ToLower(strings.TrimSpace(username))
 	if normalizedUsername == "" {
 		return UserLanguages{}, ErrUsernameRequired
 	}
 
-	key := cacheKeyPrefix + normalizedUsername
-
+	key := cacheKeyPrefix + normalizedUsername + ":" + string(scope)
 	cached, found, err := s.cache.Get(ctx, key)
 	if err != nil {
 		return UserLanguages{}, fmt.Errorf(
@@ -90,7 +91,7 @@ func (s *Service) Get(
 		return cached, nil
 	}
 
-	fetched, err := s.fetcher.FetchLanguages(ctx, normalizedUsername)
+	fetched, err := s.fetcher.FetchLanguages(ctx, normalizedUsername, scope)
 	if err != nil {
 		return UserLanguages{}, fmt.Errorf(
 			"fetch languages: %w",

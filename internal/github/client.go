@@ -41,7 +41,7 @@ func NewClient(token string, httpClient *http.Client) (*Client, error) {
 }
 
 const userStatsQuery = `
-query UserStats($username: String!, $cursor: String) {
+query UserStats($username: String!, $cursor: String, $privacy: RepositoryPrivacy) {
 	user(login: $username) {
 		name
 		login
@@ -49,7 +49,7 @@ query UserStats($username: String!, $cursor: String) {
 			first: 100
 			after: $cursor
 			ownerAffiliations: OWNER
-			privacy: PUBLIC
+			privacy: $privacy
 		) {
 			totalCount
 			nodes {
@@ -81,14 +81,14 @@ query UserStats($username: String!, $cursor: String) {
 `
 
 const userLanguagesQuery = `
-query UserLanguages($username: String!, $cursor: String) {
+query UserLanguages($username: String!, $cursor: String, $privacy: RepositoryPrivacy) {
 	user(login: $username) {
 		login
 		repositories(
 			first: 100
 			after: $cursor
 			ownerAffiliations: OWNER
-			privacy: PUBLIC
+			privacy: $privacy
 		) {
 			nodes {
 				isFork
@@ -265,6 +265,7 @@ func (c *Client) Fetch(ctx context.Context, username string) (stats.UserStats, e
 func (c *Client) FetchLanguages(
 	ctx context.Context,
 	username string,
+	scope languages.RepositoryScope,
 ) (languages.UserLanguages, error) {
 	result := languages.UserLanguages{}
 	totals := make(map[string]languages.LanguageUsage)
@@ -273,7 +274,7 @@ func (c *Client) FetchLanguages(
 	firstPage := true
 
 	for {
-		user, err := c.fetchLanguagesPage(ctx, username, cursor)
+		user, err := c.fetchLanguagesPage(ctx, username, cursor, scope)
 		if err != nil {
 			return languages.UserLanguages{}, err
 		}
@@ -412,12 +413,14 @@ func (c *Client) fetchLanguagesPage(
 	ctx context.Context,
 	username string,
 	cursor *string,
+	scope languages.RepositoryScope,
 ) (*graphqlUser, error) {
 	payload := graphqlRequest{
 		Query: userLanguagesQuery,
 		Variables: map[string]any{
 			"username": username,
 			"cursor":   cursor,
+			"privacy":  repositoryPrivacy(scope),
 		},
 	}
 
@@ -472,4 +475,15 @@ func (c *Client) fetchLanguagesPage(
 	}
 
 	return graphqlResult.Data.User, nil
+}
+
+func repositoryPrivacy(
+	scope languages.RepositoryScope,
+) *string {
+	if scope == languages.RepositoryScopeAll {
+		return nil
+	}
+
+	privacy := "PUBLIC"
+	return &privacy
 }

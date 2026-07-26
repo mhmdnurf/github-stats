@@ -16,6 +16,7 @@ type LanguagesService interface {
 	Get(
 		ctx context.Context,
 		username string,
+		scope languages.RepositoryScope,
 	) (languages.UserLanguages, error)
 }
 
@@ -97,9 +98,28 @@ func (handler *Languages) ServeHTTP(
 		return
 	}
 
+	scope := languages.RepositoryScope(
+		request.URL.Query().Get("repositories"),
+	)
+
+	if scope == "" {
+		scope = languages.RepositoryScopePublic
+	}
+
+	if scope != languages.RepositoryScopePublic &&
+		scope != languages.RepositoryScopeAll {
+		writeError(
+			writer,
+			http.StatusBadRequest,
+			"invalid repositories parameter",
+		)
+		return
+	}
+
 	userLanguages, err := handler.service.Get(
 		request.Context(),
 		handler.username,
+		scope,
 	)
 	if err != nil {
 		if errors.Is(err, context.Canceled) {
