@@ -5,7 +5,6 @@ locals {
   secret_id           = "github-stats-github-token"
   runtime_account_id  = "github-stats-runtime"
   deployer_account_id = "github-stats-deployer"
-  cloud_build_account = "${data.google_project.current.number}@cloudbuild.gserviceaccount.com"
 }
 
 resource "google_project_service" "required" {
@@ -60,12 +59,6 @@ resource "google_secret_manager_secret_iam_member" "runtime_access" {
   secret_id = google_secret_manager_secret.github_token.secret_id
   role      = "roles/secretmanager.secretAccessor"
   member    = "serviceAccount:${google_service_account.runtime.email}"
-}
-
-resource "google_project_iam_member" "cloud_build_artifact_writer" {
-  project = var.project_id
-  role    = "roles/artifactregistry.writer"
-  member  = "serviceAccount:${local.cloud_build_account}"
 }
 
 resource "google_iam_workload_identity_pool" "github_actions" {

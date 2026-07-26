@@ -118,6 +118,9 @@ Embed the card in Markdown:
 ![Most used languages](http://localhost:9000/languages)
 ```
 
+When embedding cards outside your local machine, replace
+`http://localhost:9000` with the public HTTPS URL of your deployment.
+
 Select a theme with the `theme` query parameter:
 
 ```text
@@ -217,6 +220,20 @@ Returns `200 OK` when the server is running.
 
 Environment variables override values loaded from `.env`.
 
+### GitHub token access
+
+The GitHub GraphQL API requires an access token. Grant the token only the
+minimum read access required by your deployment:
+
+- For `repositories=public`, the token only needs access to public data.
+- For `repositories=all`, private repository aggregates are included only when
+  the token can access those repositories.
+- Prefer a fine-grained token restricted to the repositories you intend to
+  include, and never commit the token to the repository.
+
+Each deployment serves the single account configured by `GITHUB_USERNAME`.
+The username cannot be changed through a request query parameter.
+
 ## Caching
 
 GitHub responses are cached in memory to reduce API requests:
@@ -254,9 +271,84 @@ capabilities, and the `no-new-privileges` security option.
 
 ## Deployment
 
-Terraform and a one-command deployment script are available for Google Cloud
-Run. See [terraform/README.md](terraform/README.md) for the initial setup and
-GitHub Actions configuration.
+Choose the deployment approach that matches your infrastructure.
+
+### Conventional Docker deployment
+
+For a VPS, a self-managed server, or any platform that runs Docker, create a
+local `.env` file and run the container directly:
+
+```shell
+docker build -t github-stats .
+docker run -d \
+  --name github-stats \
+  --restart unless-stopped \
+  --env-file .env \
+  -p 9000:9000 \
+  github-stats
+```
+
+The service is then available at `http://localhost:9000`. In production, place
+it behind an HTTPS reverse proxy and expose only the proxy publicly. Configure
+the proxy or hosting platform to use `/healthz` for health checks and add rate
+limiting when the service is publicly accessible; the application does not
+currently provide built-in rate limiting. Docker Compose is also supported;
+see the [Docker](#docker) section.
+
+### Google Cloud Run with Terraform
+
+This repository includes an optional Terraform deployment for Google Cloud
+users. It provisions Artifact Registry, Secret Manager, Cloud Run service
+accounts, Workload Identity Federation for GitHub Actions, and the Cloud Run
+service. The deployment script builds the image with Cloud Build and deploys
+it to Cloud Run.
+
+Before using it in another Google Cloud project:
+
+1. Enable billing and authenticate `gcloud` and Application Default
+   Credentials.
+2. Create a local `.env` containing `GITHUB_USERNAME` and `GITHUB_TOKEN`.
+3. Export the deployment settings used by `scripts/deploy.sh`. The state bucket
+   name must be globally unique:
+
+   ```shell
+   export PROJECT_ID=your-gcp-project
+   export REGION=asia-southeast2
+   export SERVICE_NAME=github-stats
+   export TF_STATE_BUCKET=your-unique-terraform-state-bucket
+   ```
+
+4. Change `github_repository` in `terraform/bootstrap/variables.tf` to the
+   `owner/repository` allowed to deploy through GitHub Actions.
+5. Run the one-command deployment:
+
+   ```shell
+   ./scripts/deploy.sh
+   ```
+
+See [terraform/README.md](terraform/README.md) for prerequisites, first
+deployment, verification, and GitHub Actions configuration.
+
+The included GitHub Actions workflow contains project-specific default values.
+For another project, update `PROJECT_ID`, `REGION`, and `SERVICE_NAME` in
+`.github/workflows/deploy.yml`, then configure the `GITHUB_USERNAME`,
+`GCP_WIF_PROVIDER`, and `GCP_DEPLOY_SERVICE_ACCOUNT` repository variables
+described in the Terraform guide.
+
+### Live deployment
+
+This is an example deployment that is currently live on Google Cloud Run:
+
+```text
+https://github-stats-y3q7dn6rrq-et.a.run.app
+```
+
+You can use its cards in Markdown as an example:
+
+```markdown
+![GitHub statistics](https://github-stats-y3q7dn6rrq-et.a.run.app/stats?theme=default&repositories=all)
+![Most used languages](https://github-stats-y3q7dn6rrq-et.a.run.app/languages?theme=default&repositories=all)
+```
 
 ## Development
 
@@ -301,6 +393,7 @@ go vet ./...
 - Keep `GITHUB_TOKEN` out of version control
 - Use a token with the minimum required permissions
 - Use `repositories=all` only when you intend to expose its aggregate data
+- Add rate limiting at the reverse proxy or cloud platform for public services
 - Rotate any token that appears in logs or terminal output
 - Terminate HTTPS at a reverse proxy when exposing the service publicly
 - Do not expose the application’s `.env` file through the container image

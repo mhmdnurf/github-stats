@@ -43,6 +43,24 @@ The script creates a GCS bucket for remote Terraform state before Terraform is
 initialized. The bucket is deliberately bootstrapped by the script because a
 Terraform backend must already exist before Terraform can store state in it.
 
+## Verify deployment
+
+Get the public Cloud Run URL:
+
+```shell
+gcloud run services describe github-stats \
+  --region=asia-southeast2 \
+  --format='value(status.url)'
+```
+
+Check the health endpoint:
+
+```shell
+curl "$(gcloud run services describe github-stats \
+  --region=asia-southeast2 \
+  --format='value(status.url)')/healthz"
+```
+
 ## GitHub Actions setup
 
 After the first local deployment, obtain the two bootstrap outputs:
