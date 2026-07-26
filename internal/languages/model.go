@@ -10,10 +10,3 @@ type UserLanguages struct {
 	Username  string
 	Languages []LanguageUsage
 }
-
-type RepositoryScope string
-
-const (
-	RepositoryScopePublic RepositoryScope = "public"
-	RepositoryScopeAll    RepositoryScope = "all"
-)

@@ -15,6 +15,7 @@ import (
 	"github.com/mhmdnurf/github-stats/internal/cache"
 	"github.com/mhmdnurf/github-stats/internal/card"
 	"github.com/mhmdnurf/github-stats/internal/handler"
+	repositoryScope "github.com/mhmdnurf/github-stats/internal/repository"
 	"github.com/mhmdnurf/github-stats/internal/stats"
 )
 
@@ -29,6 +30,7 @@ const configuredTestUsername = "mhmdnurf"
 func (fetcher *integrationFetcher) Fetch(
 	ctx context.Context,
 	username string,
+	_ repositoryScope.Scope,
 ) (stats.UserStats, error) {
 	if err := ctx.Err(); err != nil {
 		return stats.UserStats{}, err

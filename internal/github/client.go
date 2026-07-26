@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/mhmdnurf/github-stats/internal/languages"
+	repositoryScope "github.com/mhmdnurf/github-stats/internal/repository"
 	"github.com/mhmdnurf/github-stats/internal/stats"
 )
 
@@ -214,13 +215,17 @@ type graphqlError struct {
 
 var ErrUserNotFound = stats.ErrUserNotFound
 
-func (c *Client) Fetch(ctx context.Context, username string) (stats.UserStats, error) {
+func (c *Client) Fetch(
+	ctx context.Context,
+	username string,
+	scope repositoryScope.Scope,
+) (stats.UserStats, error) {
 	var result stats.UserStats
 	var cursor *string
 	firstPage := true
 
 	for {
-		user, err := c.fetchPage(ctx, username, cursor)
+		user, err := c.fetchPage(ctx, username, cursor, scope)
 		if err != nil {
 			return stats.UserStats{}, err
 		}
@@ -265,7 +270,7 @@ func (c *Client) Fetch(ctx context.Context, username string) (stats.UserStats, e
 func (c *Client) FetchLanguages(
 	ctx context.Context,
 	username string,
-	scope languages.RepositoryScope,
+	scope repositoryScope.Scope,
 ) (languages.UserLanguages, error) {
 	result := languages.UserLanguages{}
 	totals := make(map[string]languages.LanguageUsage)
@@ -347,12 +352,14 @@ func (c *Client) fetchPage(
 	ctx context.Context,
 	username string,
 	cursor *string,
+	scope repositoryScope.Scope,
 ) (*graphqlUser, error) {
 	payload := graphqlRequest{
 		Query: userStatsQuery,
 		Variables: map[string]any{
 			"username": username,
 			"cursor":   cursor,
+			"privacy":  repositoryPrivacy(scope),
 		},
 	}
 
@@ -380,7 +387,9 @@ func (c *Client) fetchPage(
 	if err != nil {
 		return nil, fmt.Errorf("execute github graphql request: %w", err)
 	}
-	defer response.Body.Close()
+	defer func() {
+		_ = response.Body.Close()
+	}()
 
 	if response.StatusCode < http.StatusOK ||
 		response.StatusCode >= http.StatusMultipleChoices {
@@ -413,7 +422,7 @@ func (c *Client) fetchLanguagesPage(
 	ctx context.Context,
 	username string,
 	cursor *string,
-	scope languages.RepositoryScope,
+	scope repositoryScope.Scope,
 ) (*graphqlUser, error) {
 	payload := graphqlRequest{
 		Query: userLanguagesQuery,
@@ -448,7 +457,9 @@ func (c *Client) fetchLanguagesPage(
 	if err != nil {
 		return nil, fmt.Errorf("execute github graphql request: %w", err)
 	}
-	defer response.Body.Close()
+	defer func() {
+		_ = response.Body.Close()
+	}()
 
 	if response.StatusCode < http.StatusOK ||
 		response.StatusCode >= http.StatusMultipleChoices {
@@ -478,9 +489,9 @@ func (c *Client) fetchLanguagesPage(
 }
 
 func repositoryPrivacy(
-	scope languages.RepositoryScope,
+	scope repositoryScope.Scope,
 ) *string {
-	if scope == languages.RepositoryScopeAll {
+	if scope == repositoryScope.ScopeAll {
 		return nil
 	}
 

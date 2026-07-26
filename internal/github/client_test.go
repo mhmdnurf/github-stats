@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/mhmdnurf/github-stats/internal/languages"
+	repositoryScope "github.com/mhmdnurf/github-stats/internal/repository"
 	"github.com/mhmdnurf/github-stats/internal/stats"
 )
 
@@ -77,7 +78,7 @@ func TestClientFetch(t *testing.T) {
 		t.Fatalf("create client: %v", err)
 	}
 
-	got, err := client.Fetch(context.Background(), "mhmdnurf")
+	got, err := client.Fetch(context.Background(), "mhmdnurf", repositoryScope.ScopePublic)
 	if err != nil {
 		t.Fatalf("fetch stats: %v", err)
 	}
@@ -190,7 +191,7 @@ func TestClientFetchPaginatesRepositories(t *testing.T) {
 		t.Fatalf("create client: %v", err)
 	}
 
-	got, err := client.Fetch(context.Background(), "mhmdnurf")
+	got, err := client.Fetch(context.Background(), "mhmdnurf", repositoryScope.ScopePublic)
 	if err != nil {
 		t.Fatalf("fetch stats: %v", err)
 	}
@@ -301,7 +302,7 @@ func TestClientFetchErrors(t *testing.T) {
 				t.Fatalf("create client: %v", err)
 			}
 
-			_, err = client.Fetch(context.Background(), "mhmdnurf")
+			_, err = client.Fetch(context.Background(), "mhmdnurf", repositoryScope.ScopePublic)
 			if err == nil {
 				t.Fatal("expected an error")
 			}
@@ -553,6 +554,7 @@ func TestClientFetchLanguages(t *testing.T) {
 	got, err := client.FetchLanguages(
 		context.Background(),
 		"mhmdnurf",
+		repositoryScope.ScopePublic,
 	)
 	if err != nil {
 		t.Fatalf("fetch languages: %v", err)
@@ -704,7 +706,7 @@ func TestClientFetchLanguagesPaginatesRepositories(t *testing.T) {
 		t.Fatalf("create client: %v", err)
 	}
 
-	got, err := client.FetchLanguages(context.Background(), "mhmdnurf")
+	got, err := client.FetchLanguages(context.Background(), "mhmdnurf", repositoryScope.ScopePublic)
 	if err != nil {
 		t.Fatalf("fetch languages: %v", err)
 	}
@@ -813,6 +815,7 @@ func TestClientFetchLanguagesErrors(t *testing.T) {
 			_, err = client.FetchLanguages(
 				context.Background(),
 				"mhmdnurf",
+				repositoryScope.ScopePublic,
 			)
 			if err == nil {
 				t.Fatal("expected an error")

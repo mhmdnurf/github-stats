@@ -59,13 +59,6 @@
             fill="{{.Theme.Title}}"
     >Most Used Languages</text>
 
-    <text
-            x="28"
-            y="61"
-            class="sub"
-            fill="{{.Theme.Text}}"
-    >@{{.Username}} · public active repositories</text>
-
     {{if .HasRows}}
     {{range .Rows}}
     <circle

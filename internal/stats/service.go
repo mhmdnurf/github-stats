@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	repositoryScope "github.com/mhmdnurf/github-stats/internal/repository"
 )
 
 const cacheKeyPrefix = "stats:v1:"
@@ -16,7 +18,11 @@ var (
 )
 
 type Fetcher interface {
-	Fetch(ctx context.Context, username string) (UserStats, error)
+	Fetch(
+		ctx context.Context,
+		username string,
+		scope repositoryScope.Scope,
+	) (UserStats, error)
 }
 
 type Cache interface {
@@ -66,13 +72,14 @@ func NewService(
 func (s *Service) Get(
 	ctx context.Context,
 	username string,
+	scope repositoryScope.Scope,
 ) (UserStats, error) {
 	normalizedUsername := strings.ToLower(strings.TrimSpace(username))
 	if normalizedUsername == "" {
 		return UserStats{}, ErrUsernameRequired
 	}
 
-	key := cacheKeyPrefix + normalizedUsername
+	key := cacheKeyPrefix + normalizedUsername + ":" + string(scope)
 
 	cached, found, err := s.cache.Get(ctx, key)
 	if err != nil {
@@ -83,7 +90,7 @@ func (s *Service) Get(
 		return cached, nil
 	}
 
-	fetched, err := s.fetcher.Fetch(ctx, normalizedUsername)
+	fetched, err := s.fetcher.Fetch(ctx, normalizedUsername, scope)
 	if err != nil {
 		return UserStats{}, fmt.Errorf("fetch stats: %w", err)
 	}

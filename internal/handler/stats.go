@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/mhmdnurf/github-stats/internal/card"
+	repositoryScope "github.com/mhmdnurf/github-stats/internal/repository"
 	"github.com/mhmdnurf/github-stats/internal/stats"
 )
 
@@ -16,6 +17,7 @@ type StatsService interface {
 	Get(
 		ctx context.Context,
 		username string,
+		scope repositoryScope.Scope,
 	) (stats.UserStats, error)
 }
 
@@ -98,9 +100,28 @@ func (handler *Stats) ServeHTTP(
 		return
 	}
 
+	scope := repositoryScope.Scope(
+		request.URL.Query().Get("repositories"),
+	)
+
+	if scope == "" {
+		scope = repositoryScope.ScopePublic
+	}
+
+	if scope != repositoryScope.ScopePublic &&
+		scope != repositoryScope.ScopeAll {
+		writeError(
+			writer,
+			http.StatusBadRequest,
+			"invalid repositories parameter",
+		)
+		return
+	}
+
 	userStats, err := handler.service.Get(
 		request.Context(),
 		handler.username,
+		scope,
 	)
 	if err != nil {
 		if errors.Is(err, context.Canceled) {

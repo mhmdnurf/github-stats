@@ -12,20 +12,26 @@ import (
 	"testing"
 
 	"github.com/mhmdnurf/github-stats/internal/card"
+	repositoryScope "github.com/mhmdnurf/github-stats/internal/repository"
 	"github.com/mhmdnurf/github-stats/internal/stats"
 )
 
 const configuredTestUsername = "mhmdnurf"
 
 type statsServiceStub struct {
-	get func(context.Context, string) (stats.UserStats, error)
+	get func(
+		context.Context,
+		string,
+		repositoryScope.Scope,
+	) (stats.UserStats, error)
 }
 
 func (stub statsServiceStub) Get(
 	ctx context.Context,
 	username string,
+	scope repositoryScope.Scope,
 ) (stats.UserStats, error) {
-	return stub.get(ctx, username)
+	return stub.get(ctx, username, scope)
 }
 
 type cardRendererStub struct {
@@ -193,6 +199,7 @@ func TestStatsHandlerReturnsSVG(t *testing.T) {
 		get: func(
 			ctx context.Context,
 			username string,
+			scope repositoryScope.Scope,
 		) (stats.UserStats, error) {
 			if username != configuredTestUsername {
 				t.Fatalf(
@@ -296,6 +303,7 @@ func TestStatsHandlerDoesNotAllowUsernameOverride(t *testing.T) {
 		get: func(
 			_ context.Context,
 			username string,
+			scope repositoryScope.Scope,
 		) (stats.UserStats, error) {
 			if username != configuredTestUsername {
 				t.Fatalf(
@@ -355,6 +363,7 @@ func TestStatsHandlerRejectsUnsupportedMethod(t *testing.T) {
 			get: func(
 				context.Context,
 				string,
+				repositoryScope.Scope,
 			) (stats.UserStats, error) {
 				t.Fatal("service should not be called")
 				return stats.UserStats{}, nil
@@ -457,6 +466,7 @@ func TestStatsHandlerMapsErrors(t *testing.T) {
 					get: func(
 						context.Context,
 						string,
+						repositoryScope.Scope,
 					) (stats.UserStats, error) {
 						return stats.UserStats{
 							Username: configuredTestUsername,
@@ -528,6 +538,7 @@ func TestStatsHandlerRejectsUnknownThemeBeforeService(t *testing.T) {
 			get: func(
 				context.Context,
 				string,
+				repositoryScope.Scope,
 			) (stats.UserStats, error) {
 				t.Fatal("service should not be called")
 				return stats.UserStats{}, nil
@@ -581,6 +592,7 @@ func TestStatsHandlerMapsDeadlineExceeded(t *testing.T) {
 			get: func(
 				ctx context.Context,
 				username string,
+				scope repositoryScope.Scope,
 			) (stats.UserStats, error) {
 				if username != configuredTestUsername {
 					t.Fatalf(
@@ -645,6 +657,7 @@ func TestStatsHandlerStopsWhenRequestIsCanceled(t *testing.T) {
 			get: func(
 				ctx context.Context,
 				username string,
+				scope repositoryScope.Scope,
 			) (stats.UserStats, error) {
 				if username != configuredTestUsername {
 					t.Fatalf(

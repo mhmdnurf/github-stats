@@ -6,17 +6,24 @@ import (
 	"reflect"
 	"testing"
 	"time"
+
+	repositoryScope "github.com/mhmdnurf/github-stats/internal/repository"
 )
 
 type fetcherStub struct {
-	fetch func(context.Context, string) (UserStats, error)
+	fetch func(
+		context.Context,
+		string,
+		repositoryScope.Scope,
+	) (UserStats, error)
 }
 
 func (stub fetcherStub) Fetch(
 	ctx context.Context,
 	username string,
+	scope repositoryScope.Scope,
 ) (UserStats, error) {
-	return stub.fetch(ctx, username)
+	return stub.fetch(ctx, username, scope)
 }
 
 type cacheStub struct {
@@ -55,6 +62,7 @@ func TestServiceGetReturnsCachedStats(t *testing.T) {
 			fetch: func(
 				context.Context,
 				string,
+				repositoryScope.Scope,
 			) (UserStats, error) {
 				fetchCalled = true
 				return UserStats{}, nil
@@ -65,7 +73,7 @@ func TestServiceGetReturnsCachedStats(t *testing.T) {
 				_ context.Context,
 				key string,
 			) (UserStats, bool, error) {
-				if key != "stats:v1:mhmdnurf" {
+				if key != "stats:v1:mhmdnurf:public" {
 					t.Fatalf("unexpected cache key: %q", key)
 				}
 
@@ -87,7 +95,8 @@ func TestServiceGetReturnsCachedStats(t *testing.T) {
 		t.Fatalf("create service: %v", err)
 	}
 
-	got, err := service.Get(context.Background(), "  MHMDNURF  ")
+	got, err := service.Get(context.Background(), "  MHMDNURF  ",
+		repositoryScope.ScopePublic)
 	if err != nil {
 		t.Fatalf("get stats: %v", err)
 	}
@@ -123,11 +132,16 @@ func TestServiceGetFetchesAndCachesOnMiss(t *testing.T) {
 			fetch: func(
 				_ context.Context,
 				username string,
+				scope repositoryScope.Scope,
 			) (UserStats, error) {
 				fetchCalls++
 
 				if username != "mhmdnurf" {
 					t.Fatalf("unexpected username: %q", username)
+				}
+
+				if scope != repositoryScope.ScopePublic {
+					t.Fatalf("unexpected scope: %q", scope)
 				}
 
 				return want, nil
@@ -138,7 +152,7 @@ func TestServiceGetFetchesAndCachesOnMiss(t *testing.T) {
 				_ context.Context,
 				key string,
 			) (UserStats, bool, error) {
-				if key != "stats:v1:mhmdnurf" {
+				if key != "stats:v1:mhmdnurf:public" {
 					t.Fatalf("unexpected cache key: %q", key)
 				}
 
@@ -152,7 +166,7 @@ func TestServiceGetFetchesAndCachesOnMiss(t *testing.T) {
 			) error {
 				setCalls++
 
-				if key != "stats:v1:mhmdnurf" {
+				if key != "stats:v1:mhmdnurf:public" {
 					t.Fatalf("unexpected cache key: %q", key)
 				}
 
@@ -181,7 +195,7 @@ func TestServiceGetFetchesAndCachesOnMiss(t *testing.T) {
 		t.Fatalf("create service: %v", err)
 	}
 
-	got, err := service.Get(context.Background(), "  MHMDNURF  ")
+	got, err := service.Get(context.Background(), "  MHMDNURF  ", repositoryScope.ScopePublic)
 	if err != nil {
 		t.Fatalf("get stats: %v", err)
 	}
@@ -205,6 +219,7 @@ func TestServiceGetRejectsBlankUsername(t *testing.T) {
 			fetch: func(
 				context.Context,
 				string,
+				repositoryScope.Scope,
 			) (UserStats, error) {
 				t.Fatal("fetcher should not be called")
 				return UserStats{}, nil
@@ -234,7 +249,8 @@ func TestServiceGetRejectsBlankUsername(t *testing.T) {
 		t.Fatalf("create service: %v", err)
 	}
 
-	_, err = service.Get(context.Background(), "   ")
+	_, err = service.Get(context.Background(), "   ",
+		repositoryScope.ScopePublic)
 	if !errors.Is(err, ErrUsernameRequired) {
 		t.Fatalf("expected ErrUsernameRequired, got %v", err)
 	}
@@ -276,6 +292,7 @@ func TestServiceGetPropagatesErrors(t *testing.T) {
 					fetch: func(
 						context.Context,
 						string,
+						repositoryScope.Scope,
 					) (UserStats, error) {
 						return UserStats{
 							Username: "mhmdnurf",
@@ -304,7 +321,8 @@ func TestServiceGetPropagatesErrors(t *testing.T) {
 				t.Fatalf("create service: %v", err)
 			}
 
-			_, err = service.Get(context.Background(), "mhmdnurf")
+			_, err = service.Get(context.Background(), "mhmdnurf",
+				repositoryScope.ScopePublic)
 			if !errors.Is(err, test.wantError) {
 				t.Fatalf(
 					"expected error %v, got %v",
@@ -321,6 +339,7 @@ func TestNewServiceRejectsInvalidConfiguration(t *testing.T) {
 		fetch: func(
 			context.Context,
 			string,
+			repositoryScope.Scope,
 		) (UserStats, error) {
 			return UserStats{}, nil
 		},
@@ -402,6 +421,7 @@ func TestServiceGetStopsAfterCacheGetError(t *testing.T) {
 			fetch: func(
 				context.Context,
 				string,
+				repositoryScope.Scope,
 			) (UserStats, error) {
 				t.Fatal("fetcher should not be called")
 				return UserStats{}, nil
@@ -430,7 +450,8 @@ func TestServiceGetStopsAfterCacheGetError(t *testing.T) {
 		t.Fatalf("create service: %v", err)
 	}
 
-	_, err = service.Get(context.Background(), "mhmdnurf")
+	_, err = service.Get(context.Background(), "mhmdnurf",
+		repositoryScope.ScopePublic)
 	if !errors.Is(err, wantError) {
 		t.Fatalf("expected error %v, got %v", wantError, err)
 	}

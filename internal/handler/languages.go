@@ -10,13 +10,14 @@ import (
 
 	"github.com/mhmdnurf/github-stats/internal/card"
 	"github.com/mhmdnurf/github-stats/internal/languages"
+	repositoryScope "github.com/mhmdnurf/github-stats/internal/repository"
 )
 
 type LanguagesService interface {
 	Get(
 		ctx context.Context,
 		username string,
-		scope languages.RepositoryScope,
+		scope repositoryScope.Scope,
 	) (languages.UserLanguages, error)
 }
 
@@ -98,16 +99,16 @@ func (handler *Languages) ServeHTTP(
 		return
 	}
 
-	scope := languages.RepositoryScope(
+	scope := repositoryScope.Scope(
 		request.URL.Query().Get("repositories"),
 	)
 
 	if scope == "" {
-		scope = languages.RepositoryScopePublic
+		scope = repositoryScope.ScopePublic
 	}
 
-	if scope != languages.RepositoryScopePublic &&
-		scope != languages.RepositoryScopeAll {
+	if scope != repositoryScope.ScopePublic &&
+		scope != repositoryScope.ScopeAll {
 		writeError(
 			writer,
 			http.StatusBadRequest,

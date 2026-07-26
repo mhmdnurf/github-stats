@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	repositoryScope "github.com/mhmdnurf/github-stats/internal/repository"
 )
 
 const cacheKeyPrefix = "languages:v1:"
@@ -19,7 +21,7 @@ type Fetcher interface {
 	FetchLanguages(
 		ctx context.Context,
 		username string,
-		scope RepositoryScope,
+		scope repositoryScope.Scope,
 	) (UserLanguages, error)
 }
 
@@ -72,7 +74,7 @@ func NewService(
 func (s *Service) Get(
 	ctx context.Context,
 	username string,
-	scope RepositoryScope,
+	scope repositoryScope.Scope,
 ) (UserLanguages, error) {
 	normalizedUsername := strings.ToLower(strings.TrimSpace(username))
 	if normalizedUsername == "" {

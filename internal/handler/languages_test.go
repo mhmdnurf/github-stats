@@ -11,17 +11,23 @@ import (
 
 	"github.com/mhmdnurf/github-stats/internal/card"
 	"github.com/mhmdnurf/github-stats/internal/languages"
+	repositoryScope "github.com/mhmdnurf/github-stats/internal/repository"
 )
 
 type languagesServiceStub struct {
-	get func(context.Context, string) (languages.UserLanguages, error)
+	get func(
+		context.Context,
+		string,
+		repositoryScope.Scope,
+	) (languages.UserLanguages, error)
 }
 
 func (stub languagesServiceStub) Get(
 	ctx context.Context,
 	username string,
+	scope repositoryScope.Scope,
 ) (languages.UserLanguages, error) {
-	return stub.get(ctx, username)
+	return stub.get(ctx, username, scope)
 }
 
 type languageCardRendererStub struct {
@@ -137,6 +143,7 @@ func TestLanguagesHandlerReturnsSVG(t *testing.T) {
 		get: func(
 			ctx context.Context,
 			username string,
+			scope repositoryScope.Scope,
 		) (languages.UserLanguages, error) {
 			if username != configuredTestUsername {
 				t.Fatalf(
@@ -144,6 +151,10 @@ func TestLanguagesHandlerReturnsSVG(t *testing.T) {
 					username,
 					configuredTestUsername,
 				)
+			}
+
+			if scope != repositoryScope.ScopePublic {
+				t.Fatalf("unexpected scope: %q", scope)
 			}
 
 			if ctx.Value(requestKey) != "request-123" {
@@ -279,6 +290,7 @@ func TestLanguagesHandlerRejectsUnknownThemeBeforeService(t *testing.T) {
 		get: func(
 			context.Context,
 			string,
+			repositoryScope.Scope,
 		) (languages.UserLanguages, error) {
 			t.Fatal("service should not be called")
 			return languages.UserLanguages{}, nil
@@ -375,6 +387,7 @@ func TestLanguagesHandlerMapsErrors(t *testing.T) {
 				get: func(
 					context.Context,
 					string,
+					repositoryScope.Scope,
 				) (languages.UserLanguages, error) {
 					return languages.UserLanguages{
 						Username: configuredTestUsername,
