@@ -18,8 +18,8 @@
 
 ## What is GitHub Stats?
 
-GitHub Stats is a small Go service that retrieves public profile statistics from
-the GitHub GraphQL API and renders them as native SVG cards.
+GitHub Stats is a small Go service that retrieves GitHub profile statistics
+from the GitHub GraphQL API and renders them as native SVG cards.
 
 It is designed to be self-hosted and embedded in GitHub profiles, websites, or
 other Markdown documents.
@@ -28,13 +28,14 @@ other Markdown documents.
   <img
     src="docs/images/architecture.png"
     alt="GitHub Stats architecture"
-    width="800"
+    width="1672"
   />
 </p>
 
 ## Features
 
 - Native SVG card rendering
+- Statistics and most-used-languages cards
 - GitHub GraphQL API integration
 - Repository pagination
 - Multiple card themes
@@ -103,10 +104,17 @@ Request the statistics card for the configured GitHub username:
 http://localhost:9000/stats
 ```
 
+Request the most-used-languages card:
+
+```text
+http://localhost:9000/languages
+```
+
 Embed the card in Markdown:
 
 ```markdown
 ![GitHub statistics](http://localhost:9000/stats)
+![Most used languages](http://localhost:9000/languages)
 ```
 
 Select a theme with the `theme` query parameter:
@@ -115,26 +123,39 @@ Select a theme with the `theme` query parameter:
 http://localhost:9000/stats?theme=light
 ```
 
+### Query Parameters
+
+| Parameter | Required | Default   | Description |
+|-----------|----------|-----------|-------------|
+| `theme` | No | `default` | SVG card theme for `/stats` and `/languages` |
+| `repositories` | No | `public` | Repository scope: `public` or `all` |
+
+Use `repositories=all` to include owned repositories that the configured
+GitHub token can access:
+
+```text
+http://localhost:9000/stats?repositories=all
+http://localhost:9000/languages?repositories=all
+```
+
 The GitHub username is configured through `GITHUB_USERNAME` and cannot be
 overridden through query parameters.
 
-### Query Parameters
-
-| Parameter | Required | Default   | Description    |
-|-----------|----------|-----------|----------------|
-| `theme`   | No       | `default` | SVG card theme |
-
 ## Statistics
 
-The generated card includes:
+The statistics card includes:
 
 | Statistic       | Meaning                                                   |
 |-----------------|-----------------------------------------------------------|
-| Repositories    | Public owned repositories, including forks                |
-| Stars           | Stars aggregated across public owned repositories         |
+| Repositories    | Owned repositories in the selected scope, including forks |
+| Stars           | Stars aggregated across owned repositories in the selected scope |
 | Commits         | Contributions from approximately the previous 12 months   |
 | Pull requests   | Pull request contribution count                            |
 | Followers       | Current public follower count                              |
+
+The languages card shows up to five languages, ranked by their byte size.
+It excludes forked and archived repositories; percentages are calculated from
+all included languages in the selected repository scope.
 
 ## Themes
 
@@ -142,6 +163,9 @@ The currently available themes are:
 
 - `default`
 - `light`
+- `dracula`
+- `tokyonight`
+- `gruvbox`
 
 Unknown themes return an HTTP `400 Bad Request` response.
 
@@ -150,7 +174,13 @@ Unknown themes return an HTTP `400 Bad Request` response.
 ### Generate a statistics card
 
 ```http
-GET /stats?theme={theme}
+GET /stats?theme={theme}&repositories={public|all}
+```
+
+### Generate a languages card
+
+```http
+GET /languages?theme={theme}&repositories={public|all}
 ```
 
 A successful request returns:
@@ -163,7 +193,7 @@ Possible error responses include:
 
 | Status | Meaning                              |
 |--------|--------------------------------------|
-| `400`  | Unknown theme                        |
+| `400`  | Unknown theme or invalid `repositories` value |
 | `404`  | Configured GitHub user was not found |
 | `504`  | GitHub request exceeded the deadline |
 | `500`  | Unexpected server error              |
@@ -263,6 +293,7 @@ go vet ./...
 
 - Keep `GITHUB_TOKEN` out of version control
 - Use a token with the minimum required permissions
+- Use `repositories=all` only when you intend to expose its aggregate data
 - Rotate any token that appears in logs or terminal output
 - Terminate HTTPS at a reverse proxy when exposing the service publicly
 - Do not expose the application’s `.env` file through the container image
