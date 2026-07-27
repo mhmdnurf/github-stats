@@ -36,6 +36,8 @@ for command in gcloud terraform; do
   fi
 done
 
+gcloud config set project "${project_id}" >/dev/null
+
 terraform_init() {
   local directory="$1"
   local prefix="$2"
