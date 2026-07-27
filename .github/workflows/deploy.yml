@@ -37,18 +37,5 @@ jobs:
       - name: Set up Terraform
         uses: hashicorp/setup-terraform@v3
 
-      - name: Debug identity
-        run: |
-          gcloud auth list
-          gcloud config list
-
-      - name: Debug builds submit
-        run: |
-          gcloud builds submit . \
-            --project="${PROJECT_ID}" \
-            --tag="${REGION}-docker.pkg.dev/${PROJECT_ID}/github-stats/github-stats:ci-debug" \
-            --gcs-source-staging-dir="gs://${PROJECT_ID}-${SERVICE_NAME}-cloudbuild/source" \
-            --verbosity=debug 2>&1 | tail -n 100
-
       - name: Deploy
         run: ./scripts/deploy.sh

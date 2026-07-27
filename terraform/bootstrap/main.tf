@@ -39,7 +39,7 @@ resource "google_storage_bucket" "cloudbuild_source" {
 
 resource "google_storage_bucket_iam_member" "deployer_cloudbuild_source" {
   bucket = google_storage_bucket.cloudbuild_source.name
-  role   = "roles/storage.objectAdmin"
+  role   = "roles/storage.admin"
   member = "serviceAccount:${google_service_account.deployer.email}"
 }
 
