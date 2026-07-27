@@ -88,9 +88,13 @@ Add these repository variables in GitHub:
 
 | Variable | Value |
 |---|---|
-| `GITHUB_USERNAME` | GitHub account shown by the cards |
+| `GH_USERNAME` | GitHub account shown by the cards |
 | `GCP_WIF_PROVIDER` | `workload_identity_provider` output |
 | `GCP_DEPLOY_SERVICE_ACCOUNT` | `deployer_service_account` output |
+
+> [!NOTE]
+> GitHub rejects repository variable names starting with `GITHUB_`, so the
+> username variable is named `GH_USERNAME` instead.
 
 The workflow in `.github/workflows/deploy.yml` then deploys on pushes to
 `main`. It uses GitHub OIDC and Workload Identity Federation; it does not store
