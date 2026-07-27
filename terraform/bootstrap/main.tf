@@ -152,7 +152,7 @@ resource "google_project_iam_member" "deployer" {
     "roles/cloudbuild.builds.editor",
     "roles/cloudscheduler.admin",
     "roles/run.admin",
-    "roles/serviceusage.serviceUsageViewer",
+    "roles/serviceusage.serviceUsageConsumer",
     "roles/storage.objectAdmin",
   ])
 
