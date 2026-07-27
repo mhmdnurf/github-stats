@@ -196,3 +196,9 @@ resource "google_service_account_iam_member" "deployer_scheduler_user" {
   role               = "roles/iam.serviceAccountUser"
   member             = "serviceAccount:${google_service_account.deployer.email}"
 }
+
+resource "google_service_account_iam_member" "deployer_compute_default_user" {
+  service_account_id = "projects/${var.project_id}/serviceAccounts/${data.google_project.current.number}-compute@developer.gserviceaccount.com"
+  role                = "roles/iam.serviceAccountUser"
+  member              = "serviceAccount:${google_service_account.deployer.email}"
+}
