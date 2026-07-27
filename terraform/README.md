@@ -3,10 +3,11 @@
 `scripts/deploy.sh` is the one-command deployment entry point. It creates the
 Terraform state bucket, provisions the bootstrap resources, uploads the GitHub
 token from the local `.env` file to Secret Manager, builds the container with
-Cloud Build, updates and executes the snapshot refresh job to seed Firestore,
-and only then deploys the resulting server image to Cloud Run. During the
-first cutover, the previous runtime keeps its token access until the new
-revision deploys successfully; the script removes that legacy access last.
+Cloud Build using a dedicated least-privilege builder service account, updates
+and executes the snapshot refresh job to seed Firestore, and only then deploys
+the resulting server image to Cloud Run. During the first cutover, the previous
+runtime keeps its token access until the new revision deploys successfully; the
+script removes that legacy access last.
 
 ## Prerequisites
 
@@ -43,6 +44,7 @@ The defaults are:
 | Cloud Run refresh job | `github-stats-refresh` |
 | Snapshot refresh schedule | Every 15 minutes |
 | Artifact Registry repository | `github-stats` |
+| Cloud Build service account | `github-stats-builder` |
 
 The script creates a GCS bucket for remote Terraform state before Terraform is
 initialized. The bucket is deliberately bootstrapped by the script because a
@@ -98,7 +100,22 @@ Add these repository variables in GitHub:
 
 The workflow in `.github/workflows/deploy.yml` then deploys on pushes to
 `main`. It uses GitHub OIDC and Workload Identity Federation; it does not store
-a Google service-account key or the GitHub API token in GitHub Actions.
+a Google service-account key or the GitHub API token in GitHub Actions. Cloud
+Build runs as the dedicated `github-stats-builder` service account instead of
+the project-wide Compute Engine default service account.
+
+When bootstrap IAM resources change, apply the bootstrap stack once with an
+administrator identity before rerunning the application-only workflow:
+
+```shell
+terraform -chdir=terraform/bootstrap init -reconfigure \
+  -backend-config="bucket=mhmdnurf-github-stats-github-stats-tfstate" \
+  -backend-config="prefix=bootstrap"
+terraform -chdir=terraform/bootstrap plan \
+  -var="retain_legacy_runtime_secret_access=false"
+terraform -chdir=terraform/bootstrap apply \
+  -var="retain_legacy_runtime_secret_access=false"
+```
 
 ## Deployment settings
 

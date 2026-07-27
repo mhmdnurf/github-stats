@@ -18,6 +18,10 @@ output "deployer_service_account" {
   value = google_service_account.deployer.email
 }
 
+output "builder_service_account" {
+  value = google_service_account.builder.email
+}
+
 output "github_token_secret_id" {
   value = google_secret_manager_secret.github_token.secret_id
 }

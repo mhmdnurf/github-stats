@@ -19,6 +19,7 @@ jobs:
       REGION: asia-southeast2
       SERVICE_NAME: github-stats
       GITHUB_USERNAME: ${{ vars.GH_USERNAME }}
+      BUILD_SERVICE_ACCOUNT: github-stats-builder@mhmdnurf-github-stats.iam.gserviceaccount.com
       DEPLOY_MODE: application
 
     steps:

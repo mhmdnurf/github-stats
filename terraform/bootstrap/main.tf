@@ -1,12 +1,11 @@
-data "google_project" "current" {}
-
 locals {
-  artifact_repository  = "github-stats"
-  secret_id            = "github-stats-github-token"
-  runtime_account_id   = "github-stats-runtime"
-  refresh_account_id   = "github-stats-refresh"
-  scheduler_account_id = "github-stats-scheduler"
-  deployer_account_id  = "github-stats-deployer"
+  artifact_repository      = "github-stats"
+  secret_id                = "github-stats-github-token"
+  runtime_account_id       = "github-stats-runtime"
+  refresh_account_id       = "github-stats-refresh"
+  scheduler_account_id     = "github-stats-scheduler"
+  deployer_account_id      = "github-stats-deployer"
+  builder_account_id       = "github-stats-builder"
   cloudbuild_source_bucket = "${var.project_id}-${var.service_name}-cloudbuild"
 }
 
@@ -43,6 +42,12 @@ resource "google_storage_bucket_iam_member" "deployer_cloudbuild_source" {
   member = "serviceAccount:${google_service_account.deployer.email}"
 }
 
+resource "google_storage_bucket_iam_member" "builder_cloudbuild_source" {
+  bucket = google_storage_bucket.cloudbuild_source.name
+  role   = "roles/storage.objectAdmin"
+  member = "serviceAccount:${google_service_account.builder.email}"
+}
+
 resource "google_artifact_registry_repository" "images" {
   project       = var.project_id
   location      = var.region
@@ -75,6 +80,12 @@ resource "google_service_account" "deployer" {
   project      = var.project_id
   account_id   = local.deployer_account_id
   display_name = "GitHub Stats GitHub Actions deployer"
+}
+
+resource "google_service_account" "builder" {
+  project      = var.project_id
+  account_id   = local.builder_account_id
+  display_name = "GitHub Stats Cloud Build executor"
 }
 
 resource "google_firestore_database" "snapshots" {
@@ -166,7 +177,6 @@ resource "google_service_account_iam_member" "github_actions_workload_identity" 
 
 resource "google_project_iam_member" "deployer" {
   for_each = toset([
-    "roles/artifactregistry.writer",
     "roles/cloudbuild.builds.editor",
     "roles/cloudscheduler.admin",
     "roles/run.admin",
@@ -177,6 +187,12 @@ resource "google_project_iam_member" "deployer" {
   project = var.project_id
   role    = each.value
   member  = "serviceAccount:${google_service_account.deployer.email}"
+}
+
+resource "google_project_iam_member" "builder_artifact_writer" {
+  project = var.project_id
+  role    = "roles/artifactregistry.writer"
+  member  = "serviceAccount:${google_service_account.builder.email}"
 }
 
 resource "google_service_account_iam_member" "deployer_runtime_user" {
@@ -197,8 +213,8 @@ resource "google_service_account_iam_member" "deployer_scheduler_user" {
   member             = "serviceAccount:${google_service_account.deployer.email}"
 }
 
-resource "google_service_account_iam_member" "deployer_compute_default_user" {
-  service_account_id = "projects/${var.project_id}/serviceAccounts/${data.google_project.current.number}-compute@developer.gserviceaccount.com"
-  role                = "roles/iam.serviceAccountUser"
-  member              = "serviceAccount:${google_service_account.deployer.email}"
+resource "google_service_account_iam_member" "deployer_builder_user" {
+  service_account_id = google_service_account.builder.name
+  role               = "roles/iam.serviceAccountUser"
+  member             = "serviceAccount:${google_service_account.deployer.email}"
 }

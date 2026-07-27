@@ -14,6 +14,7 @@ secret_name="${GITHUB_TOKEN_SECRET_NAME:-github-stats-github-token}"
 runtime_service_account="${RUNTIME_SERVICE_ACCOUNT:-github-stats-runtime@${project_id}.iam.gserviceaccount.com}"
 refresh_service_account="${REFRESH_SERVICE_ACCOUNT:-github-stats-refresh@${project_id}.iam.gserviceaccount.com}"
 scheduler_service_account="${SCHEDULER_SERVICE_ACCOUNT:-github-stats-scheduler@${project_id}.iam.gserviceaccount.com}"
+build_service_account="${BUILD_SERVICE_ACCOUNT:-github-stats-builder@${project_id}.iam.gserviceaccount.com}"
 firestore_collection="${FIRESTORE_COLLECTION:-github_stats_snapshots}"
 refresh_schedule="${REFRESH_SCHEDULE:-*/15 * * * *}"
 refresh_job_name="${service_name}-refresh"
@@ -83,7 +84,9 @@ image="${region}-docker.pkg.dev/${project_id}/${artifact_repository}/${service_n
 gcloud builds submit "${root_dir}" \
   --project="${project_id}" \
   --tag="${image}" \
-  --gcs-source-staging-dir="gs://${cloudbuild_source_bucket}/source"
+  --gcs-source-staging-dir="gs://${cloudbuild_source_bucket}/source" \
+  --gcs-log-dir="gs://${cloudbuild_source_bucket}/logs" \
+  --service-account="projects/${project_id}/serviceAccounts/${build_service_account}"
 
 terraform_init "terraform/app" "app"
 
