@@ -37,5 +37,14 @@ jobs:
       - name: Set up Terraform
         uses: hashicorp/setup-terraform@v3
 
+      - name: Debug identity
+        run: |
+          gcloud auth list
+          gcloud config list
+          gcloud projects get-iam-policy "${PROJECT_ID}" \
+            --flatten="bindings[].members" \
+            --filter="bindings.members:github-stats-deployer@${PROJECT_ID}.iam.gserviceaccount.com" \
+            --format="table(bindings.role)"
+
       - name: Deploy
         run: ./scripts/deploy.sh
