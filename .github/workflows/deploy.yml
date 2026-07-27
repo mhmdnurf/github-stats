@@ -41,10 +41,14 @@ jobs:
         run: |
           gcloud auth list
           gcloud config list
-          gcloud projects get-iam-policy "${PROJECT_ID}" \
-            --flatten="bindings[].members" \
-            --filter="bindings.members:github-stats-deployer@${PROJECT_ID}.iam.gserviceaccount.com" \
-            --format="table(bindings.role)"
+
+      - name: Debug builds submit
+        run: |
+          gcloud builds submit . \
+            --project="${PROJECT_ID}" \
+            --tag="${REGION}-docker.pkg.dev/${PROJECT_ID}/github-stats/github-stats:ci-debug" \
+            --gcs-source-staging-dir="gs://${PROJECT_ID}-${SERVICE_NAME}-cloudbuild/source" \
+            --verbosity=debug 2>&1 | tail -n 100
 
       - name: Deploy
         run: ./scripts/deploy.sh
