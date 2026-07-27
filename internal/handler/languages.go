@@ -11,6 +11,7 @@ import (
 	"github.com/mhmdnurf/github-stats/internal/card"
 	"github.com/mhmdnurf/github-stats/internal/languages"
 	repositoryScope "github.com/mhmdnurf/github-stats/internal/repository"
+	"github.com/mhmdnurf/github-stats/internal/snapshot"
 )
 
 type LanguagesService interface {
@@ -141,6 +142,16 @@ func (handler *Languages) ServeHTTP(
 				writer,
 				http.StatusNotFound,
 				"GitHub user not found",
+			)
+			return
+		}
+
+		if errors.Is(err, snapshot.ErrUnavailable) {
+			writer.Header().Set("Retry-After", "60")
+			writeError(
+				writer,
+				http.StatusServiceUnavailable,
+				"languages snapshot unavailable",
 			)
 			return
 		}

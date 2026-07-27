@@ -47,11 +47,6 @@ func load(filename string) (Config, error) {
 	token := strings.TrimSpace(
 		os.Getenv("GITHUB_TOKEN"),
 	)
-	if token == "" {
-		return Config{}, errors.New(
-			"GITHUB_TOKEN is required",
-		)
-	}
 
 	address := strings.TrimSpace(
 		os.Getenv("HTTP_ADDRESS"),
@@ -63,6 +58,11 @@ func load(filename string) (Config, error) {
 	googleCloudProject := strings.TrimSpace(
 		os.Getenv("GOOGLE_CLOUD_PROJECT"),
 	)
+	if googleCloudProject == "" {
+		return Config{}, errors.New(
+			"GOOGLE_CLOUD_PROJECT is required",
+		)
+	}
 
 	firestoreCollection := strings.TrimSpace(
 		os.Getenv("FIRESTORE_COLLECTION"),

@@ -10,6 +10,7 @@ import (
 
 	"github.com/mhmdnurf/github-stats/internal/card"
 	repositoryScope "github.com/mhmdnurf/github-stats/internal/repository"
+	"github.com/mhmdnurf/github-stats/internal/snapshot"
 	"github.com/mhmdnurf/github-stats/internal/stats"
 )
 
@@ -142,6 +143,16 @@ func (handler *Stats) ServeHTTP(
 				writer,
 				http.StatusNotFound,
 				"GitHub user not found",
+			)
+			return
+		}
+
+		if errors.Is(err, snapshot.ErrUnavailable) {
+			writer.Header().Set("Retry-After", "60")
+			writeError(
+				writer,
+				http.StatusServiceUnavailable,
+				"statistics snapshot unavailable",
 			)
 			return
 		}

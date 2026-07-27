@@ -14,22 +14,23 @@
 </div>
 
 > [!NOTE]
-> GitHub Stats currently uses an in-memory cache. Cached data is cleared whenever
-> the application restarts.
+> Public card requests never call GitHub directly. They are served from
+> persistent Firestore snapshots with an in-memory L1 cache.
 
 ## What is GitHub Stats?
 
-GitHub Stats is a small Go service that retrieves GitHub profile statistics
-from the GitHub GraphQL API and renders them as native SVG cards.
+GitHub Stats is a small Go application that periodically retrieves GitHub
+profile statistics through a refresh job and renders persistent snapshots as
+native SVG cards.
 
 It is designed to be self-hosted and embedded in GitHub profiles, websites, or
 other Markdown documents.
 
 <p align="center">
   <img
-    src="docs/images/architecture.png"
+    src="docs/images/architecture.svg"
     alt="GitHub Stats architecture"
-    width="1672"
+    width="1600"
   />
 </p>
 
@@ -37,11 +38,13 @@ other Markdown documents.
 
 - Native SVG card rendering
 - Statistics and most-used-languages cards
-- GitHub GraphQL API integration
+- Scheduled GitHub GraphQL refresh
 - Repository pagination
 - Multiple card themes
-- Cache-aside statistics service
-- Per-entry in-memory cache expiration
+- Persistent Firestore snapshots
+- In-memory L1 cache with stale fallback
+- Snapshot preload before serving traffic
+- Cloud Run Job and Cloud Scheduler support
 - Request timeout and graceful shutdown
 - Docker and Docker Compose support
 - Health-check endpoint
@@ -70,16 +73,29 @@ Add the GitHub username to display and your GitHub token:
 ```dotenv
 GITHUB_USERNAME=mhmdnurf
 GITHUB_TOKEN=your_github_token
+GOOGLE_CLOUD_PROJECT=your-gcp-project
+FIRESTORE_COLLECTION=github_stats_snapshots
 HTTP_ADDRESS=:9000
 ```
 
-Without `GITHUB_USERNAME`, the server fails during startup.
+The server uses Application Default Credentials to read Firestore. The GitHub
+token is used only by the snapshot refresh command.
 
 > [!WARNING]
 > Never commit `.env` or expose your GitHub token in client-side code, logs, or
 > public documentation.
 
 ### 3. Start with Docker Compose
+
+Create Application Default Credentials and seed the snapshots once:
+
+```shell
+gcloud auth application-default login
+go run ./cmd/refresh
+```
+
+The Compose configuration mounts the standard local `gcloud` ADC file as a
+read-only container credential.
 
 ```shell
 docker compose up -d --build
@@ -88,7 +104,7 @@ docker compose up -d --build
 Check the health endpoint:
 
 ```shell
-curl http://localhost:9000/healthz
+curl http://localhost:9000/health
 ```
 
 The service will be available at:
@@ -198,25 +214,27 @@ Possible error responses include:
 | Status | Meaning                              |
 |--------|--------------------------------------|
 | `400`  | Unknown theme or invalid `repositories` value |
-| `404`  | Configured GitHub user was not found |
-| `504`  | GitHub request exceeded the deadline |
+| `503`  | A snapshot is not available yet |
+| `504`  | Snapshot storage exceeded the deadline |
 | `500`  | Unexpected server error              |
 
 ### Health check
 
 ```http
-GET /healthz
+GET /health
 ```
 
 Returns `200 OK` when the server is running.
 
 ## Configuration
 
-| Variable          | Required | Default | Description                          |
-|-------------------|----------|---------|--------------------------------------|
-| `GITHUB_USERNAME` | Yes      | —       | GitHub account displayed by the card |
-| `GITHUB_TOKEN`    | Yes      | —       | Token used for the GitHub API        |
-| `HTTP_ADDRESS`    | No       | `:9000` | HTTP server listening address        |
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `GITHUB_USERNAME` | Yes | — | GitHub account displayed by the card |
+| `GITHUB_TOKEN` | Refresh only | — | Token used by the refresh job |
+| `GOOGLE_CLOUD_PROJECT` | Yes | — | Project containing Firestore |
+| `FIRESTORE_COLLECTION` | No | `github_stats_snapshots` | Snapshot collection |
+| `HTTP_ADDRESS` | No | `:9000` | HTTP server listening address |
 
 Environment variables override values loaded from `.env`.
 
@@ -236,15 +254,11 @@ The username cannot be changed through a request query parameter.
 
 ## Caching
 
-GitHub responses are cached in memory to reduce API requests:
-
-- Cache entries expire after 10 minutes
-- Browser responses use a 5-minute cache duration
-- Expired entries are removed lazily
-- Cache access is safe for concurrent requests
-
-Because the cache is stored in memory, it is not shared between application
-instances and does not survive restarts.
+The public server never calls GitHub directly. A scheduled refresh job writes
+stats and language snapshots to Firestore every 15 minutes. The server loads
+those snapshots into an in-memory L1 cache and falls back to stale memory data
+if Firestore has a temporary error. Browser responses use a 5-minute cache
+duration.
 
 ## Docker
 
@@ -276,21 +290,32 @@ Choose the deployment approach that matches your infrastructure.
 ### Conventional Docker deployment
 
 For a VPS, a self-managed server, or any platform that runs Docker, create a
-local `.env` file and run the container directly:
+local `.env`, authenticate Application Default Credentials, and seed Firestore
+before starting the server:
 
 ```shell
+gcloud auth application-default login
+go run ./cmd/refresh
+
 docker build -t github-stats .
 docker run -d \
   --name github-stats \
   --restart unless-stopped \
   --env-file .env \
+  -e GOOGLE_APPLICATION_CREDENTIALS=/var/run/secrets/google/adc.json \
+  -v \
+  "${HOME}/.config/gcloud/application_default_credentials.json:/var/run/secrets/google/adc.json:ro" \
   -p 9000:9000 \
   github-stats
 ```
 
+On platforms outside Google Cloud, provide an equivalent ADC-compatible
+credential instead of the local `gcloud` credential file. Never bake that
+credential into the image.
+
 The service is then available at `http://localhost:9000`. In production, place
 it behind an HTTPS reverse proxy and expose only the proxy publicly. Configure
-the proxy or hosting platform to use `/healthz` for health checks and add rate
+the proxy or hosting platform to use `/health` for health checks and add rate
 limiting when the service is publicly accessible; the application does not
 currently provide built-in rate limiting. Docker Compose is also supported;
 see the [Docker](#docker) section.
@@ -298,10 +323,16 @@ see the [Docker](#docker) section.
 ### Google Cloud Run with Terraform
 
 This repository includes an optional Terraform deployment for Google Cloud
-users. It provisions Artifact Registry, Secret Manager, Cloud Run service
-accounts, Workload Identity Federation for GitHub Actions, and the Cloud Run
-service. The deployment script builds the image with Cloud Build and deploys
-it to Cloud Run.
+users. It provisions Artifact Registry, Secret Manager, Firestore, Cloud Run
+service accounts, a scheduled refresh job, Workload Identity Federation for
+GitHub Actions, and the Cloud Run service. The deployment script seeds
+Firestore before rolling out the server image.
+
+The default deployment creates three operational resources:
+
+- `github-stats`: public Cloud Run Service
+- `github-stats-refresh`: private Cloud Run Job
+- `github-stats-refresh-schedule`: 15-minute Cloud Scheduler trigger
 
 Before using it in another Google Cloud project:
 
@@ -355,12 +386,16 @@ You can use its cards in Markdown as an example:
 ### Requirements
 
 - Go 1.26.5 or newer
+- A Google Cloud project with Firestore
+- Google Cloud CLI and Application Default Credentials
 - A GitHub personal access token
 - Docker, if using the containerized setup
 
-Run the application locally:
+Authenticate, seed snapshots, and then run the application locally:
 
 ```shell
+gcloud auth application-default login
+go run ./cmd/refresh
 go run ./cmd/server
 ```
 
@@ -370,10 +405,10 @@ Run the complete test suite:
 go test ./...
 ```
 
-Run cache tests with the race detector:
+Run snapshot and HTTP-path tests with the race detector:
 
 ```shell
-go test -race ./internal/cache
+go test -race ./internal/snapshot ./internal/handler ./cmd/server
 ```
 
 Run all tests with the race detector:
@@ -391,6 +426,9 @@ go vet ./...
 ## Security
 
 - Keep `GITHUB_TOKEN` out of version control
+- Prefer attached service accounts or Workload Identity Federation over JSON
+  keys
+- Keep the public server identity read-only in Firestore
 - Use a token with the minimum required permissions
 - Use `repositories=all` only when you intend to expose its aggregate data
 - Add rate limiting at the reverse proxy or cloud platform for public services

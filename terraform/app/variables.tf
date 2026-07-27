@@ -31,6 +31,16 @@ variable "runtime_service_account" {
   description = "Service account used by the Cloud Run revision."
 }
 
+variable "refresh_service_account" {
+  type        = string
+  description = "Service account used by the snapshot refresh job."
+}
+
+variable "scheduler_service_account" {
+  type        = string
+  description = "Service account used by Cloud Scheduler to invoke the refresh job."
+}
+
 variable "github_token_secret_id" {
   type        = string
   description = "Secret Manager secret ID containing GITHUB_TOKEN."
@@ -44,5 +54,16 @@ variable "firestore_collection" {
   validation {
     condition     = length(trimspace(var.firestore_collection)) > 0
     error_message = "firestore_collection must not be empty."
+  }
+}
+
+variable "refresh_schedule" {
+  type        = string
+  description = "Cron schedule used to refresh persistent snapshots."
+  default     = "*/15 * * * *"
+
+  validation {
+    condition     = length(trimspace(var.refresh_schedule)) > 0
+    error_message = "refresh_schedule must not be empty."
   }
 }

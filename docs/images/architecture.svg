@@ -1,0 +1,214 @@
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  width="1600"
+  height="700"
+  viewBox="0 0 1600 700"
+  role="img"
+  aria-labelledby="title description"
+>
+  <title id="title">GitHub Stats snapshot architecture</title>
+  <desc id="description">
+    Cloud Scheduler invokes a Cloud Run refresh job that reads the GitHub
+    GraphQL API and writes snapshots to Firestore. Public requests are served
+    by a Cloud Run service using an in-memory cache backed by Firestore.
+  </desc>
+
+  <defs>
+    <marker
+      id="arrow"
+      markerWidth="10"
+      markerHeight="10"
+      refX="9"
+      refY="3"
+      orient="auto"
+      markerUnits="strokeWidth"
+    >
+      <path d="M0,0 L0,6 L9,3 z" fill="#06b6d4" />
+    </marker>
+
+    <style>
+      .box {
+        fill: #111827;
+        stroke: #475569;
+        stroke-width: 2;
+      }
+
+      .node-title {
+        fill: #f8fafc;
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: 25px;
+        font-weight: 600;
+      }
+
+      .subtitle {
+        fill: #94a3b8;
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: 17px;
+        font-weight: 400;
+      }
+
+      .arrow {
+        fill: none;
+        stroke: #06b6d4;
+        stroke-width: 3;
+        marker-end: url(#arrow);
+      }
+
+      .edge-label {
+        fill: #94a3b8;
+        font-family: Menlo, Consolas, monospace;
+        font-size: 16px;
+        font-weight: 400;
+      }
+
+    </style>
+  </defs>
+
+  <text
+    x="50"
+    y="44"
+    fill="#94a3b8"
+    font-family="Arial, Helvetica, sans-serif"
+    font-size="20"
+    font-weight="600"
+    letter-spacing="1.5"
+  >
+    Scheduled refresh path
+  </text>
+
+  <rect class="box" x="50" y="80" width="270" height="120" rx="14" />
+  <circle cx="185" cy="114" r="11" fill="#06b6d4" />
+  <path
+    d="M185 98 V114 L197 122"
+    fill="none"
+    stroke="#111827"
+    stroke-width="3"
+    stroke-linecap="round"
+  />
+  <text class="node-title" x="80" y="158">
+    Cloud Scheduler
+  </text>
+  <text class="subtitle" x="80" y="184">
+    every 15 minutes
+  </text>
+
+  <rect class="box" x="400" y="80" width="300" height="120" rx="14" />
+  <text class="node-title" x="430" y="140">
+    Cloud Run Job
+  </text>
+  <text class="subtitle" x="430" y="174">
+    github-stats-refresh
+  </text>
+
+  <rect class="box" x="780" y="80" width="290" height="120" rx="14" />
+  <text class="node-title" x="810" y="140">
+    GitHub GraphQL API
+  </text>
+  <text class="subtitle" x="810" y="174">
+    stats + languages
+  </text>
+
+  <rect class="box" x="1150" y="80" width="300" height="120" rx="14" />
+  <ellipse
+    cx="1300"
+    cy="116"
+    rx="21"
+    ry="9"
+    fill="none"
+    stroke="#06b6d4"
+    stroke-width="3"
+  />
+  <path
+    d="M1279 116 V141 C1279 153 1321 153 1321 141 V116"
+    fill="none"
+    stroke="#06b6d4"
+    stroke-width="3"
+  />
+  <text class="node-title" x="1180" y="174">
+    Firestore snapshots
+  </text>
+
+  <path class="arrow" d="M320 140 H390" />
+  <text class="edge-label" x="325" y="126">
+    trigger
+  </text>
+
+  <path class="arrow" d="M700 140 H770" />
+  <text class="edge-label" x="705" y="126">
+    fetch
+  </text>
+
+  <path class="arrow" d="M1070 140 H1140" />
+  <text class="edge-label" x="1075" y="126">
+    write
+  </text>
+
+  <text
+    x="50"
+    y="362"
+    fill="#94a3b8"
+    font-family="Arial, Helvetica, sans-serif"
+    font-size="20"
+    font-weight="600"
+    letter-spacing="1.5"
+  >
+    Public request path
+  </text>
+
+  <rect class="box" x="50" y="470" width="270" height="120" rx="14" />
+  <text class="node-title" x="80" y="530">
+    GitHub / browser
+  </text>
+  <text class="subtitle" x="80" y="564">
+    card request
+  </text>
+
+  <rect class="box" x="430" y="450" width="390" height="160" rx="14" />
+  <text class="node-title" x="460" y="516">
+    Cloud Run Service
+  </text>
+  <text class="subtitle" x="460" y="550">
+    github-stats
+  </text>
+  <text class="subtitle" x="460" y="580">
+    preload snapshots + render SVG
+  </text>
+
+  <rect class="box" x="930" y="300" width="280" height="120" rx="14" />
+  <text class="node-title" x="960" y="360">
+    In-memory L1
+  </text>
+  <text class="subtitle" x="960" y="394">
+    fresh or stale fallback
+  </text>
+
+  <rect class="box" x="1150" y="470" width="300" height="120" rx="14" />
+  <text class="node-title" x="1180" y="530">
+    SVG card response
+  </text>
+  <text class="subtitle" x="1180" y="564">
+    fast public path
+  </text>
+
+  <path class="arrow" d="M320 530 H420" />
+  <text class="edge-label" x="330" y="516">
+    GET
+  </text>
+
+  <path class="arrow" d="M820 530 H1140" />
+  <text class="edge-label" x="940" y="516">
+    render
+  </text>
+
+  <path class="arrow" d="M700 450 C760 390 840 360 920 360" />
+  <path class="arrow" d="M930 386 C840 414 770 452 710 488" />
+  <text class="edge-label" x="800" y="382">
+    read
+  </text>
+
+  <path class="arrow" d="M1210 330 C1260 296 1290 254 1298 210" />
+  <path class="arrow" d="M1318 200 C1318 250 1288 302 1220 350" />
+  <text class="edge-label" x="1340" y="280">
+    miss / stale
+  </text>
+</svg>

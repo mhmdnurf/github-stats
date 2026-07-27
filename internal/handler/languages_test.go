@@ -12,6 +12,7 @@ import (
 	"github.com/mhmdnurf/github-stats/internal/card"
 	"github.com/mhmdnurf/github-stats/internal/languages"
 	repositoryScope "github.com/mhmdnurf/github-stats/internal/repository"
+	"github.com/mhmdnurf/github-stats/internal/snapshot"
 )
 
 type languagesServiceStub struct {
@@ -348,6 +349,7 @@ func TestLanguagesHandlerMapsErrors(t *testing.T) {
 		serviceError       error
 		rendererError      error
 		wantStatus         int
+		wantRetryAfter     string
 		wantRendererCalled bool
 	}{
 		{
@@ -359,6 +361,12 @@ func TestLanguagesHandlerMapsErrors(t *testing.T) {
 			name:         "deadline exceeded",
 			serviceError: context.DeadlineExceeded,
 			wantStatus:   http.StatusGatewayTimeout,
+		},
+		{
+			name:           "snapshot unavailable",
+			serviceError:   snapshot.ErrUnavailable,
+			wantStatus:     http.StatusServiceUnavailable,
+			wantRetryAfter: "60",
 		},
 		{
 			name:         "unexpected service error",
@@ -429,6 +437,16 @@ func TestLanguagesHandlerMapsErrors(t *testing.T) {
 					"unexpected status: got %d, want %d",
 					response.Code,
 					test.wantStatus,
+				)
+			}
+
+			if got := response.Header().Get(
+				"Retry-After",
+			); got != test.wantRetryAfter {
+				t.Fatalf(
+					"Retry-After: got %q, want %q",
+					got,
+					test.wantRetryAfter,
 				)
 			}
 

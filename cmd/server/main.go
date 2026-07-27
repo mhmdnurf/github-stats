@@ -11,20 +11,19 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/mhmdnurf/github-stats/internal/cache"
+	"cloud.google.com/go/firestore"
 	"github.com/mhmdnurf/github-stats/internal/card"
 	"github.com/mhmdnurf/github-stats/internal/config"
-	githubclient "github.com/mhmdnurf/github-stats/internal/github"
 	"github.com/mhmdnurf/github-stats/internal/handler"
 	"github.com/mhmdnurf/github-stats/internal/languages"
+	repositoryScope "github.com/mhmdnurf/github-stats/internal/repository"
+	"github.com/mhmdnurf/github-stats/internal/snapshot"
 	"github.com/mhmdnurf/github-stats/internal/stats"
 )
 
 const (
-	githubRequestTimeout = 15 * time.Second
-	statsCacheTTL        = 10 * time.Minute
-	languagesCacheTTL    = 10 * time.Minute
-	shutdownTimeout      = 10 * time.Second
+	snapshotPreloadTimeout = 10 * time.Second
+	shutdownTimeout        = 10 * time.Second
 )
 
 func main() {
@@ -53,38 +52,101 @@ func run(logger *slog.Logger) error {
 		return fmt.Errorf("load configuration: %w", err)
 	}
 
-	githubHTTPClient := &http.Client{
-		Timeout: githubRequestTimeout,
-	}
+	signalContext, stopSignals := signal.NotifyContext(
+		context.Background(),
+		os.Interrupt,
+		syscall.SIGTERM,
+	)
+	defer stopSignals()
 
-	githubClient, err := githubclient.NewClient(
-		configuration.GitHubToken,
-		githubHTTPClient,
+	firestoreClient, err := firestore.NewClient(
+		signalContext,
+		configuration.GoogleCloudProjectID,
 	)
 	if err != nil {
-		return fmt.Errorf("create GitHub client: %w", err)
+		return fmt.Errorf("create Firestore client: %w", err)
 	}
+	defer func() {
+		if err := firestoreClient.Close(); err != nil {
+			logger.Error(
+				"close Firestore client",
+				"error",
+				err,
+			)
+		}
+	}()
 
-	memoryCache := cache.NewMemory()
-
-	statsService, err := stats.NewService(
-		githubClient,
-		memoryCache,
-		statsCacheTTL,
+	statsStore, err := snapshot.NewFirestore[stats.UserStats](
+		firestoreClient,
+		configuration.FirestoreCollection,
 	)
 	if err != nil {
-		return fmt.Errorf("create stats service: %w", err)
+		return fmt.Errorf("create stats snapshot store: %w", err)
 	}
 
-	languageMemoryCache := cache.NewLanguageMemory()
-
-	languagesService, err := languages.NewService(
-		githubClient,
-		languageMemoryCache,
-		languagesCacheTTL,
+	statsReader, err := snapshot.NewReader(
+		snapshot.NewMemory[stats.UserStats](),
+		statsStore,
 	)
 	if err != nil {
-		return fmt.Errorf("create languages service: %w", err)
+		return fmt.Errorf("create stats snapshot reader: %w", err)
+	}
+
+	statsService, err := snapshot.NewProvider(
+		statsReader,
+		snapshot.KindStats,
+	)
+	if err != nil {
+		return fmt.Errorf("create stats snapshot provider: %w", err)
+	}
+
+	languagesStore, err :=
+		snapshot.NewFirestore[languages.UserLanguages](
+			firestoreClient,
+			configuration.FirestoreCollection,
+		)
+	if err != nil {
+		return fmt.Errorf(
+			"create languages snapshot store: %w",
+			err,
+		)
+	}
+
+	languagesReader, err := snapshot.NewReader(
+		snapshot.NewMemory[languages.UserLanguages](),
+		languagesStore,
+	)
+	if err != nil {
+		return fmt.Errorf(
+			"create languages snapshot reader: %w",
+			err,
+		)
+	}
+
+	languagesService, err := snapshot.NewProvider(
+		languagesReader,
+		snapshot.KindLanguages,
+	)
+	if err != nil {
+		return fmt.Errorf(
+			"create languages snapshot provider: %w",
+			err,
+		)
+	}
+
+	preloadContext, cancelPreload := context.WithTimeout(
+		signalContext,
+		snapshotPreloadTimeout,
+	)
+	err = preloadSnapshots(
+		preloadContext,
+		configuration.GitHubUsername,
+		statsService,
+		languagesService,
+	)
+	cancelPreload()
+	if err != nil {
+		return fmt.Errorf("preload snapshots: %w", err)
 	}
 
 	cardRenderer, err := card.NewRenderer()
@@ -132,13 +194,6 @@ func run(logger *slog.Logger) error {
 		MaxHeaderBytes:    1 << 20,
 	}
 
-	signalContext, stopSignals := signal.NotifyContext(
-		context.Background(),
-		os.Interrupt,
-		syscall.SIGTERM,
-	)
-	defer stopSignals()
-
 	serverErrors := make(chan error, 1)
 
 	go func() {
@@ -179,6 +234,44 @@ func run(logger *slog.Logger) error {
 
 		return nil
 	}
+}
+
+func preloadSnapshots(
+	ctx context.Context,
+	username string,
+	statsService handler.StatsService,
+	languagesService handler.LanguagesService,
+) error {
+	for _, scope := range []repositoryScope.Scope{
+		repositoryScope.ScopePublic,
+		repositoryScope.ScopeAll,
+	} {
+		if _, err := statsService.Get(
+			ctx,
+			username,
+			scope,
+		); err != nil {
+			return fmt.Errorf(
+				"preload stats for %s: %w",
+				scope,
+				err,
+			)
+		}
+
+		if _, err := languagesService.Get(
+			ctx,
+			username,
+			scope,
+		); err != nil {
+			return fmt.Errorf(
+				"preload languages for %s: %w",
+				scope,
+				err,
+			)
+		}
+	}
+
+	return nil
 }
 
 func healthHandler(

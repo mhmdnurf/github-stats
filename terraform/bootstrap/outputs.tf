@@ -6,6 +6,14 @@ output "runtime_service_account" {
   value = google_service_account.runtime.email
 }
 
+output "refresh_service_account" {
+  value = google_service_account.refresh.email
+}
+
+output "scheduler_service_account" {
+  value = google_service_account.scheduler.email
+}
+
 output "deployer_service_account" {
   value = google_service_account.deployer.email
 }

@@ -13,6 +13,7 @@ import (
 
 	"github.com/mhmdnurf/github-stats/internal/card"
 	repositoryScope "github.com/mhmdnurf/github-stats/internal/repository"
+	"github.com/mhmdnurf/github-stats/internal/snapshot"
 	"github.com/mhmdnurf/github-stats/internal/stats"
 )
 
@@ -424,6 +425,7 @@ func TestStatsHandlerMapsErrors(t *testing.T) {
 		renderError       error
 		wantStatus        int
 		wantBody          string
+		wantRetryAfter    string
 		wantRendererCalls int
 	}{
 		{
@@ -431,6 +433,14 @@ func TestStatsHandlerMapsErrors(t *testing.T) {
 			serviceError:      stats.ErrUserNotFound,
 			wantStatus:        http.StatusNotFound,
 			wantBody:          "GitHub user not found\n",
+			wantRendererCalls: 0,
+		},
+		{
+			name:              "snapshot unavailable",
+			serviceError:      snapshot.ErrUnavailable,
+			wantStatus:        http.StatusServiceUnavailable,
+			wantBody:          "statistics snapshot unavailable\n",
+			wantRetryAfter:    "60",
 			wantRendererCalls: 0,
 		},
 		{
@@ -510,6 +520,16 @@ func TestStatsHandlerMapsErrors(t *testing.T) {
 					"unexpected body: got %q, want %q",
 					response.Body.String(),
 					test.wantBody,
+				)
+			}
+
+			if got := response.Header().Get(
+				"Retry-After",
+			); got != test.wantRetryAfter {
+				t.Fatalf(
+					"Retry-After: got %q, want %q",
+					got,
+					test.wantRetryAfter,
 				)
 			}
 

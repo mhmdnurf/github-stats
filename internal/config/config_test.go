@@ -142,7 +142,8 @@ func TestLoadUsesDefaultAddress(t *testing.T) {
 	filename := writeTestEnv(
 		t,
 		"GITHUB_USERNAME=file-user\n"+
-			"GITHUB_TOKEN=file-token\n",
+			"GITHUB_TOKEN=file-token\n"+
+			"GOOGLE_CLOUD_PROJECT=file-project\n",
 	)
 
 	got, err := load(filename)
@@ -167,26 +168,57 @@ func TestLoadUsesDefaultAddress(t *testing.T) {
 	}
 }
 
-func TestLoadRequiresGitHubToken(t *testing.T) {
+func TestLoadAllowsMissingGitHubToken(t *testing.T) {
 	unsetEnvironment(t, "GITHUB_USERNAME")
 	unsetEnvironment(t, "GITHUB_TOKEN")
 	unsetEnvironment(t, "HTTP_ADDRESS")
 	unsetSnapshotEnvironment(t)
 
-	filename := writeTestEnv(t, "GITHUB_USERNAME=file-user\n"+"")
+	filename := writeTestEnv(
+		t,
+		"GITHUB_USERNAME=file-user\n"+
+			"GOOGLE_CLOUD_PROJECT=file-project\n",
+	)
 
-	config, err := load(filename)
+	configuration, err := load(filename)
+	if err != nil {
+		t.Fatalf("load config: %v", err)
+	}
+
+	if configuration.GitHubToken != "" {
+		t.Fatalf(
+			"GitHubToken = %q, want empty",
+			configuration.GitHubToken,
+		)
+	}
+}
+
+func TestLoadRequiresGoogleCloudProject(t *testing.T) {
+	unsetEnvironment(t, "GITHUB_USERNAME")
+	unsetEnvironment(t, "GITHUB_TOKEN")
+	unsetEnvironment(t, "HTTP_ADDRESS")
+	unsetSnapshotEnvironment(t)
+
+	filename := writeTestEnv(
+		t,
+		"GITHUB_USERNAME=file-user\n",
+	)
+
+	configuration, err := load(filename)
 	if err == nil {
 		t.Fatal("expected an error")
 	}
 
-	if config != (Config{}) {
-		t.Fatalf("expected zero config, got %+v", config)
+	if configuration != (Config{}) {
+		t.Fatalf(
+			"expected zero config, got %+v",
+			configuration,
+		)
 	}
 
 	if !strings.Contains(
 		err.Error(),
-		"GITHUB_TOKEN is required",
+		"GOOGLE_CLOUD_PROJECT is required",
 	) {
 		t.Fatalf("unexpected error: %v", err)
 	}

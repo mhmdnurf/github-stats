@@ -27,3 +27,9 @@ variable "github_repository" {
   description = "GitHub repository allowed to deploy through Workload Identity Federation."
   default     = "mhmdnurf/github-stats"
 }
+
+variable "retain_legacy_runtime_secret_access" {
+  type        = bool
+  description = "Keep runtime token access until the snapshot-based server rollout succeeds."
+  default     = true
+}

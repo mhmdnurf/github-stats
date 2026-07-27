@@ -33,7 +33,7 @@ func Key(
 		return "", ErrUsernameRequired
 	}
 
-	if kind != KindStats && kind != KindLanguages {
+	if !validKind(kind) {
 		return "", ErrKindInvalid
 	}
 
@@ -49,4 +49,8 @@ func Key(
 		kind,
 		scope,
 	), nil
+}
+
+func validKind(kind Kind) bool {
+	return kind == KindStats || kind == KindLanguages
 }

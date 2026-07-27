@@ -11,7 +11,12 @@ artifact_repository="${ARTIFACT_REPOSITORY:-github-stats}"
 state_bucket="${TF_STATE_BUCKET:-${project_id}-${service_name}-tfstate}"
 secret_name="${GITHUB_TOKEN_SECRET_NAME:-github-stats-github-token}"
 runtime_service_account="${RUNTIME_SERVICE_ACCOUNT:-github-stats-runtime@${project_id}.iam.gserviceaccount.com}"
+refresh_service_account="${REFRESH_SERVICE_ACCOUNT:-github-stats-refresh@${project_id}.iam.gserviceaccount.com}"
+scheduler_service_account="${SCHEDULER_SERVICE_ACCOUNT:-github-stats-scheduler@${project_id}.iam.gserviceaccount.com}"
 firestore_collection="${FIRESTORE_COLLECTION:-github_stats_snapshots}"
+refresh_schedule="${REFRESH_SCHEDULE:-*/15 * * * *}"
+refresh_job_name="${service_name}-refresh"
+run_initial_refresh="${RUN_INITIAL_REFRESH:-true}"
 deploy_mode="${DEPLOY_MODE:-all}"
 
 if [[ -f "${root_dir}/.env" ]]; then
@@ -53,11 +58,13 @@ if [[ "${deploy_mode}" == "all" ]]; then
 
   terraform_init "terraform/bootstrap" "bootstrap"
 
-  terraform -chdir="${root_dir}/terraform/bootstrap" apply -auto-approve \
+  terraform -chdir="${root_dir}/terraform/bootstrap" apply \
+    -auto-approve \
     -var="project_id=${project_id}" \
     -var="region=${region}" \
     -var="service_name=${service_name}" \
-    -var="state_bucket=${state_bucket}"
+    -var="state_bucket=${state_bucket}" \
+    -var="retain_legacy_runtime_secret_access=true"
 
   if [[ -n "${GITHUB_TOKEN:-}" ]]; then
     printf '%s' "${GITHUB_TOKEN}" | \
@@ -76,12 +83,42 @@ gcloud builds submit "${root_dir}" \
 
 terraform_init "terraform/app" "app"
 
-terraform -chdir="${root_dir}/terraform/app" apply -auto-approve \
-  -var="project_id=${project_id}" \
-  -var="region=${region}" \
-  -var="service_name=${service_name}" \
-  -var="image=${image}" \
-  -var="github_username=${GITHUB_USERNAME}" \
-  -var="runtime_service_account=${runtime_service_account}" \
-  -var="github_token_secret_id=${secret_name}" \
-  -var="firestore_collection=${firestore_collection}"
+terraform_variables=(
+  "-var=project_id=${project_id}"
+  "-var=region=${region}"
+  "-var=service_name=${service_name}"
+  "-var=image=${image}"
+  "-var=github_username=${GITHUB_USERNAME}"
+  "-var=runtime_service_account=${runtime_service_account}"
+  "-var=refresh_service_account=${refresh_service_account}"
+  "-var=scheduler_service_account=${scheduler_service_account}"
+  "-var=github_token_secret_id=${secret_name}"
+  "-var=firestore_collection=${firestore_collection}"
+  "-var=refresh_schedule=${refresh_schedule}"
+)
+
+if [[ "${run_initial_refresh}" == "true" ]]; then
+  terraform -chdir="${root_dir}/terraform/app" apply \
+    -auto-approve \
+    -target=google_cloud_run_v2_job.snapshot_refresh \
+    "${terraform_variables[@]}"
+
+  gcloud run jobs execute "${refresh_job_name}" \
+    --project="${project_id}" \
+    --region="${region}" \
+    --wait
+fi
+
+terraform -chdir="${root_dir}/terraform/app" apply \
+  -auto-approve \
+  "${terraform_variables[@]}"
+
+if [[ "${deploy_mode}" == "all" ]]; then
+  terraform -chdir="${root_dir}/terraform/bootstrap" apply \
+    -auto-approve \
+    -var="project_id=${project_id}" \
+    -var="region=${region}" \
+    -var="service_name=${service_name}" \
+    -var="state_bucket=${state_bucket}" \
+    -var="retain_legacy_runtime_secret_access=false"
+fi

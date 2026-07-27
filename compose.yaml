@@ -10,9 +10,13 @@ services:
       - .env
     environment:
       HTTP_ADDRESS: ":9000"
+      GOOGLE_APPLICATION_CREDENTIALS: "/var/run/secrets/google/adc.json"
 
     ports:
       - "9000:9000"
+
+    volumes:
+      - "${HOME}/.config/gcloud/application_default_credentials.json:/var/run/secrets/google/adc.json:ro"
 
     restart: unless-stopped
 
