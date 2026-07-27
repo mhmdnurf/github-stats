@@ -10,11 +10,14 @@ import (
 )
 
 const defaultHTTPAddress = ":9000"
+const defaultFirestoreCollection = "github_stats_snapshots"
 
 type Config struct {
-	GitHubToken    string
-	GitHubUsername string
-	HTTPAddress    string
+	GitHubToken          string
+	GitHubUsername       string
+	HTTPAddress          string
+	GoogleCloudProjectID string
+	FirestoreCollection  string
 }
 
 func Load() (Config, error) {
@@ -57,9 +60,22 @@ func load(filename string) (Config, error) {
 		address = defaultHTTPAddress
 	}
 
+	googleCloudProject := strings.TrimSpace(
+		os.Getenv("GOOGLE_CLOUD_PROJECT"),
+	)
+
+	firestoreCollection := strings.TrimSpace(
+		os.Getenv("FIRESTORE_COLLECTION"),
+	)
+	if firestoreCollection == "" {
+		firestoreCollection = defaultFirestoreCollection
+	}
+
 	return Config{
-		GitHubToken:    token,
-		GitHubUsername: username,
-		HTTPAddress:    address,
+		GitHubToken:          token,
+		GitHubUsername:       username,
+		HTTPAddress:          address,
+		GoogleCloudProjectID: googleCloudProject,
+		FirestoreCollection:  firestoreCollection,
 	}, nil
 }

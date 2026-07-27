@@ -51,16 +51,26 @@ func unsetEnvironment(
 	})
 }
 
+func unsetSnapshotEnvironment(t *testing.T) {
+	t.Helper()
+
+	unsetEnvironment(t, "GOOGLE_CLOUD_PROJECT")
+	unsetEnvironment(t, "FIRESTORE_COLLECTION")
+}
+
 func TestLoadFromFile(t *testing.T) {
 	unsetEnvironment(t, "GITHUB_USERNAME")
 	unsetEnvironment(t, "GITHUB_TOKEN")
 	unsetEnvironment(t, "HTTP_ADDRESS")
+	unsetSnapshotEnvironment(t)
 
 	filename := writeTestEnv(
 		t,
 		"GITHUB_USERNAME=file-user\n"+
 			"GITHUB_TOKEN=file-token\n"+
-			"HTTP_ADDRESS=:7000\n",
+			"HTTP_ADDRESS=:7000\n"+
+			"GOOGLE_CLOUD_PROJECT=file-project\n"+
+			"FIRESTORE_COLLECTION=file-snapshots\n",
 	)
 
 	got, err := load(filename)
@@ -69,9 +79,11 @@ func TestLoadFromFile(t *testing.T) {
 	}
 
 	want := Config{
-		GitHubToken:    "file-token",
-		GitHubUsername: "file-user",
-		HTTPAddress:    ":7000",
+		GitHubToken:          "file-token",
+		GitHubUsername:       "file-user",
+		HTTPAddress:          ":7000",
+		GoogleCloudProjectID: "file-project",
+		FirestoreCollection:  "file-snapshots",
 	}
 
 	if got != want {
@@ -87,12 +99,16 @@ func TestLoadEnvironmentTakesPrecedence(t *testing.T) {
 	t.Setenv("GITHUB_USERNAME", "environment-user")
 	t.Setenv("GITHUB_TOKEN", "environment-token")
 	t.Setenv("HTTP_ADDRESS", ":7000")
+	t.Setenv("GOOGLE_CLOUD_PROJECT", "environment-project")
+	t.Setenv("FIRESTORE_COLLECTION", "environment-snapshots")
 
 	filename := writeTestEnv(
 		t,
 		"GITHUB_USERNAME=file-user\n"+
 			"GITHUB_TOKEN=file-token\n"+
-			"HTTP_ADDRESS=:7000\n",
+			"HTTP_ADDRESS=:7000\n"+
+			"GOOGLE_CLOUD_PROJECT=file-project\n"+
+			"FIRESTORE_COLLECTION=file-snapshots\n",
 	)
 
 	got, err := load(filename)
@@ -101,9 +117,11 @@ func TestLoadEnvironmentTakesPrecedence(t *testing.T) {
 	}
 
 	want := Config{
-		GitHubToken:    "environment-token",
-		GitHubUsername: "environment-user",
-		HTTPAddress:    ":7000",
+		GitHubToken:          "environment-token",
+		GitHubUsername:       "environment-user",
+		HTTPAddress:          ":7000",
+		GoogleCloudProjectID: "environment-project",
+		FirestoreCollection:  "environment-snapshots",
 	}
 
 	if got != want {
@@ -119,6 +137,7 @@ func TestLoadUsesDefaultAddress(t *testing.T) {
 	unsetEnvironment(t, "GITHUB_USERNAME")
 	unsetEnvironment(t, "GITHUB_TOKEN")
 	unsetEnvironment(t, "HTTP_ADDRESS")
+	unsetSnapshotEnvironment(t)
 
 	filename := writeTestEnv(
 		t,
@@ -138,12 +157,21 @@ func TestLoadUsesDefaultAddress(t *testing.T) {
 			defaultHTTPAddress,
 		)
 	}
+
+	if got.FirestoreCollection != defaultFirestoreCollection {
+		t.Fatalf(
+			"unexpected Firestore collection: got %q, want %q",
+			got.FirestoreCollection,
+			defaultFirestoreCollection,
+		)
+	}
 }
 
 func TestLoadRequiresGitHubToken(t *testing.T) {
 	unsetEnvironment(t, "GITHUB_USERNAME")
 	unsetEnvironment(t, "GITHUB_TOKEN")
 	unsetEnvironment(t, "HTTP_ADDRESS")
+	unsetSnapshotEnvironment(t)
 
 	filename := writeTestEnv(t, "GITHUB_USERNAME=file-user\n"+"")
 
@@ -168,6 +196,7 @@ func TestLoadRejectsMalformedFile(t *testing.T) {
 	unsetEnvironment(t, "GITHUB_USERNAME")
 	unsetEnvironment(t, "GITHUB_TOKEN")
 	unsetEnvironment(t, "HTTP_ADDRESS")
+	unsetSnapshotEnvironment(t)
 
 	filename := writeTestEnv(
 		t,

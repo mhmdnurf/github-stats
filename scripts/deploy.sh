@@ -11,6 +11,7 @@ artifact_repository="${ARTIFACT_REPOSITORY:-github-stats}"
 state_bucket="${TF_STATE_BUCKET:-${project_id}-${service_name}-tfstate}"
 secret_name="${GITHUB_TOKEN_SECRET_NAME:-github-stats-github-token}"
 runtime_service_account="${RUNTIME_SERVICE_ACCOUNT:-github-stats-runtime@${project_id}.iam.gserviceaccount.com}"
+firestore_collection="${FIRESTORE_COLLECTION:-github_stats_snapshots}"
 deploy_mode="${DEPLOY_MODE:-all}"
 
 if [[ -f "${root_dir}/.env" ]]; then
@@ -82,4 +83,5 @@ terraform -chdir="${root_dir}/terraform/app" apply -auto-approve \
   -var="image=${image}" \
   -var="github_username=${GITHUB_USERNAME}" \
   -var="runtime_service_account=${runtime_service_account}" \
-  -var="github_token_secret_id=${secret_name}"
+  -var="github_token_secret_id=${secret_name}" \
+  -var="firestore_collection=${firestore_collection}"

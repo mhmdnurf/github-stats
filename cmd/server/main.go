@@ -120,7 +120,7 @@ func run(logger *slog.Logger) error {
 	mux := http.NewServeMux()
 	mux.Handle("/stats", statsHandler)
 	mux.Handle("/languages", languagesHandler)
-	mux.HandleFunc("/healthz", healthHandler)
+	mux.HandleFunc("/health", healthHandler)
 
 	server := &http.Server{
 		Addr:              configuration.HTTPAddress,

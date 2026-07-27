@@ -15,8 +15,15 @@ RUN CGO_ENABLED=0 GOOS=linux \
     go build \
     -trimpath \
     -ldflags="-s -w" \
-    -o /out/github-stats \
+    -o /out/github-stats-server \
     ./cmd/server
+
+RUN CGO_ENABLED=0 GOOS=linux \
+    go build \
+    -trimpath \
+    -ldflags="-s -w" \
+    -o /out/github-stats-refresh \
+    ./cmd/refresh
 
 FROM alpine:3.24.1 AS runtime
 
@@ -27,8 +34,12 @@ RUN apk add --no-cache ca-certificates \
 WORKDIR /app
 
 COPY --from=build \
-    /out/github-stats \
-    /usr/local/bin/github-stats
+    /out/github-stats-server \
+    /usr/local/bin/github-stats-server
+
+COPY --from=build \
+    /out/github-stats-refresh \
+    /usr/local/bin/github-stats-refresh
 
 ENV HTTP_ADDRESS=:9000
 
@@ -42,7 +53,7 @@ HEALTHCHECK \
     --start-period=5s \
     --retries=3 \
     CMD wget -q -O /dev/null \
-        "http://127.0.0.1${HTTP_ADDRESS}/healthz" \
+        "http://127.0.0.1${HTTP_ADDRESS}/health" \
         || exit 1
 
-ENTRYPOINT ["/usr/local/bin/github-stats"]
+ENTRYPOINT ["/usr/local/bin/github-stats-server"]

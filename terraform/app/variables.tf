@@ -35,3 +35,14 @@ variable "github_token_secret_id" {
   type        = string
   description = "Secret Manager secret ID containing GITHUB_TOKEN."
 }
+
+variable "firestore_collection" {
+  type        = string
+  description = "Firestore collection containing persistent snapshots."
+  default     = "github_stats_snapshots"
+
+  validation {
+    condition     = length(trimspace(var.firestore_collection)) > 0
+    error_message = "firestore_collection must not be empty."
+  }
+}

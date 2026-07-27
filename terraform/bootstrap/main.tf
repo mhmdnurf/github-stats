@@ -11,6 +11,7 @@ resource "google_project_service" "required" {
   for_each = toset([
     "artifactregistry.googleapis.com",
     "cloudbuild.googleapis.com",
+    "firestore.googleapis.com",
     "iamcredentials.googleapis.com",
     "run.googleapis.com",
     "secretmanager.googleapis.com",
@@ -43,6 +44,18 @@ resource "google_service_account" "deployer" {
   display_name = "GitHub Stats GitHub Actions deployer"
 }
 
+resource "google_firestore_database" "snapshots" {
+  project     = var.project_id
+  name        = "(default)"
+  location_id = var.region
+  type        = "FIRESTORE_NATIVE"
+
+  delete_protection_state = "DELETE_PROTECTION_ENABLED"
+  deletion_policy         = "ABANDON"
+
+  depends_on = [google_project_service.required]
+}
+
 resource "google_secret_manager_secret" "github_token" {
   project   = var.project_id
   secret_id = local.secret_id
@@ -59,6 +72,12 @@ resource "google_secret_manager_secret_iam_member" "runtime_access" {
   secret_id = google_secret_manager_secret.github_token.secret_id
   role      = "roles/secretmanager.secretAccessor"
   member    = "serviceAccount:${google_service_account.runtime.email}"
+}
+
+resource "google_project_iam_member" "runtime_firestore_access" {
+  project = var.project_id
+  role    = "roles/datastore.user"
+  member  = "serviceAccount:${google_service_account.runtime.email}"
 }
 
 resource "google_iam_workload_identity_pool" "github_actions" {

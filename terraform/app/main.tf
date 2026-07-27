@@ -7,7 +7,7 @@ resource "google_cloud_run_v2_service" "github_stats" {
     service_account = var.runtime_service_account
 
     scaling {
-      min_instance_count = 0
+      min_instance_count = 1
       max_instance_count = 1
     }
 
@@ -23,6 +23,7 @@ resource "google_cloud_run_v2_service" "github_stats" {
           cpu    = "1"
           memory = "512Mi"
         }
+        startup_cpu_boost = true
       }
 
       env {
@@ -33,6 +34,16 @@ resource "google_cloud_run_v2_service" "github_stats" {
       env {
         name  = "HTTP_ADDRESS"
         value = ":8080"
+      }
+
+      env {
+        name  = "GOOGLE_CLOUD_PROJECT"
+        value = var.project_id
+      }
+
+      env {
+        name  = "FIRESTORE_COLLECTION"
+        value = var.firestore_collection
       }
 
       env {
