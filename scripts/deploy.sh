@@ -8,6 +8,7 @@ project_id="${PROJECT_ID:-mhmdnurf-github-stats}"
 region="${REGION:-asia-southeast2}"
 service_name="${SERVICE_NAME:-github-stats}"
 artifact_repository="${ARTIFACT_REPOSITORY:-github-stats}"
+cloudbuild_source_bucket="${CLOUDBUILD_SOURCE_BUCKET:-${project_id}-${service_name}-cloudbuild}"
 state_bucket="${TF_STATE_BUCKET:-${project_id}-${service_name}-tfstate}"
 secret_name="${GITHUB_TOKEN_SECRET_NAME:-github-stats-github-token}"
 runtime_service_account="${RUNTIME_SERVICE_ACCOUNT:-github-stats-runtime@${project_id}.iam.gserviceaccount.com}"
@@ -79,7 +80,8 @@ image="${region}-docker.pkg.dev/${project_id}/${artifact_repository}/${service_n
 
 gcloud builds submit "${root_dir}" \
   --project="${project_id}" \
-  --tag="${image}"
+  --tag="${image}" \
+  --gcs-source-staging-dir="gs://${cloudbuild_source_bucket}/source"
 
 terraform_init "terraform/app" "app"
 

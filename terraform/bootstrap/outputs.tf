@@ -29,3 +29,7 @@ output "firestore_database" {
 output "workload_identity_provider" {
   value = google_iam_workload_identity_pool_provider.github_actions.name
 }
+
+output "cloudbuild_source_bucket" {
+  value = google_storage_bucket.cloudbuild_source.name
+}

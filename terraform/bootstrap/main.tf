@@ -7,6 +7,7 @@ locals {
   refresh_account_id   = "github-stats-refresh"
   scheduler_account_id = "github-stats-scheduler"
   deployer_account_id  = "github-stats-deployer"
+  cloudbuild_source_bucket = "${var.project_id}-${var.service_name}-cloudbuild"
 }
 
 resource "google_project_service" "required" {
@@ -23,6 +24,22 @@ resource "google_project_service" "required" {
   project            = var.project_id
   service            = each.value
   disable_on_destroy = false
+}
+
+resource "google_storage_bucket" "cloudbuild_source" {
+  project                     = var.project_id
+  name                        = local.cloudbuild_source_bucket
+  location                    = var.region
+  uniform_bucket_level_access = true
+  force_destroy               = true
+
+  depends_on = [google_project_service.required]
+}
+
+resource "google_storage_bucket_iam_member" "deployer_cloudbuild_source" {
+  bucket = google_storage_bucket.cloudbuild_source.name
+  role   = "roles/storage.objectAdmin"
+  member = "serviceAccount:${google_service_account.deployer.email}"
 }
 
 resource "google_artifact_registry_repository" "images" {
