@@ -3,25 +3,10 @@ package server
 import (
 	"context"
 	"fmt"
-	"net/http"
-	"time"
 
 	"cloud.google.com/go/firestore"
-	firestoreadapter "github.com/mhmdnurf/github-stats/internal/adapter/firestore"
-	githubclient "github.com/mhmdnurf/github-stats/internal/adapter/github"
-	"github.com/mhmdnurf/github-stats/internal/cache"
 	"github.com/mhmdnurf/github-stats/internal/config"
 	"github.com/mhmdnurf/github-stats/internal/handler"
-	"github.com/mhmdnurf/github-stats/internal/languages"
-	"github.com/mhmdnurf/github-stats/internal/snapshot"
-	"github.com/mhmdnurf/github-stats/internal/stats"
-)
-
-const (
-	snapshotPreloadTimeout = 10 * time.Second
-
-	dynamicGitHubRequestTimeout = 20 * time.Second
-	dynamicCacheTTL             = 5 * time.Minute
 )
 
 type services struct {
@@ -54,141 +39,32 @@ func newServices(
 		return nil
 	}
 
-	statsStore, err := firestoreadapter.NewStore[stats.UserStats](
-		firestoreClient,
-		configuration.FirestoreCollection,
-	)
-	if err != nil {
-		return services{}, nil, cleanupAfterError(
-			fmt.Errorf("create stats snapshot store: %w", err),
-			closeServices,
-		)
-	}
-
-	statsReader, err := snapshot.NewReader(
-		snapshot.NewMemory[stats.UserStats](),
-		statsStore,
-	)
-	if err != nil {
-		return services{}, nil, cleanupAfterError(
-			fmt.Errorf("create stats snapshot reader: %w", err),
-			closeServices,
-		)
-	}
-
-	statsService, err := snapshot.NewProvider(
-		statsReader,
-		snapshot.KindStats,
-		stats.ErrUnavailable,
-	)
-	if err != nil {
-		return services{}, nil, cleanupAfterError(
-			fmt.Errorf("create stats snapshot provider: %w", err),
-			closeServices,
-		)
-	}
-
-	languagesStore, err :=
-		firestoreadapter.NewStore[languages.UserLanguages](
-			firestoreClient,
-			configuration.FirestoreCollection,
-		)
-	if err != nil {
-		return services{}, nil, cleanupAfterError(
-			fmt.Errorf(
-				"create languages snapshot store: %w",
-				err,
-			),
-			closeServices,
-		)
-	}
-
-	languagesReader, err := snapshot.NewReader(
-		snapshot.NewMemory[languages.UserLanguages](),
-		languagesStore,
-	)
-	if err != nil {
-		return services{}, nil, cleanupAfterError(
-			fmt.Errorf(
-				"create languages snapshot reader: %w",
-				err,
-			),
-			closeServices,
-		)
-	}
-
-	languagesService, err := snapshot.NewProvider(
-		languagesReader,
-		snapshot.KindLanguages,
-		languages.ErrUnavailable,
-	)
-	if err != nil {
-		return services{}, nil, cleanupAfterError(
-			fmt.Errorf(
-				"create languages snapshot provider: %w",
-				err,
-			),
-			closeServices,
-		)
-	}
-
-	preloadContext, cancelPreload := context.WithTimeout(
+	configured, err := newConfiguredServices(
 		ctx,
-		snapshotPreloadTimeout,
+		configuration,
+		firestoreClient,
 	)
-	err = preloadSnapshots(
-		preloadContext,
-		configuration.GitHubUsername,
-		statsService,
-		languagesService,
-	)
-	cancelPreload()
 	if err != nil {
 		return services{}, nil, cleanupAfterError(
-			fmt.Errorf("preload snapshots: %w", err),
+			err,
 			closeServices,
 		)
 	}
 
-	githubClient, err := githubclient.NewClient(
-		configuration.GitHubToken,
-		&http.Client{Timeout: dynamicGitHubRequestTimeout},
+	dynamic, err := newDynamicServices(
+		configuration,
 	)
 	if err != nil {
 		return services{}, nil, cleanupAfterError(
-			fmt.Errorf("create GitHub client: %w", err),
-			closeServices,
-		)
-	}
-
-	dynamicStatsService, err := stats.NewService(
-		githubClient,
-		cache.NewMemory(),
-		dynamicCacheTTL,
-	)
-	if err != nil {
-		return services{}, nil, cleanupAfterError(
-			fmt.Errorf("create dynamic stats service: %w", err),
-			closeServices,
-		)
-	}
-
-	dynamicLanguagesService, err := languages.NewService(
-		githubClient,
-		cache.NewLanguageMemory(),
-		dynamicCacheTTL,
-	)
-	if err != nil {
-		return services{}, nil, cleanupAfterError(
-			fmt.Errorf("create dynamic languages service: %w", err),
+			err,
 			closeServices,
 		)
 	}
 
 	return services{
-		configuredStats:     statsService,
-		configuredLanguages: languagesService,
-		dynamicStats:        dynamicStatsService,
-		dynamicLanguages:    dynamicLanguagesService,
+		configuredStats:     configured.stats,
+		configuredLanguages: configured.languages,
+		dynamicStats:        dynamic.stats,
+		dynamicLanguages:    dynamic.languages,
 	}, closeServices, nil
 }
