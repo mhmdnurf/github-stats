@@ -41,7 +41,7 @@ func newDynamicServices(
 
 	statsService, err := stats.NewService(
 		githubClient,
-		cache.NewMemory(),
+		cache.NewMemory[stats.UserStats](),
 		dynamicCacheTTL,
 	)
 	if err != nil {
@@ -53,7 +53,7 @@ func newDynamicServices(
 
 	languagesService, err := languages.NewService(
 		githubClient,
-		cache.NewLanguageMemory(),
+		cache.NewMemory[languages.UserLanguages](),
 		dynamicCacheTTL,
 	)
 	if err != nil {

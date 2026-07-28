@@ -4,36 +4,34 @@ import (
 	"context"
 	"sync"
 	"time"
-
-	"github.com/mhmdnurf/github-stats/internal/stats"
 )
 
-type memoryEntry struct {
-	value     stats.UserStats
+type memoryEntry[T any] struct {
+	value     T
 	expiresAt time.Time
 }
 
-type Memory struct {
+type Memory[T any] struct {
 	mu      sync.RWMutex
-	entries map[string]memoryEntry
+	entries map[string]memoryEntry[T]
 	now     func() time.Time
 }
 
-var _ stats.Cache = (*Memory)(nil)
-
-func NewMemory() *Memory {
-	return &Memory{
-		entries: make(map[string]memoryEntry),
+func NewMemory[T any]() *Memory[T] {
+	return &Memory[T]{
+		entries: make(map[string]memoryEntry[T]),
 		now:     time.Now,
 	}
 }
 
-func (m *Memory) Get(
+func (m *Memory[T]) Get(
 	ctx context.Context,
 	key string,
-) (stats.UserStats, bool, error) {
+) (T, bool, error) {
+	var zero T
+
 	if err := ctx.Err(); err != nil {
-		return stats.UserStats{}, false, err
+		return zero, false, err
 	}
 
 	m.mu.RLock()
@@ -41,7 +39,7 @@ func (m *Memory) Get(
 
 	if !found {
 		m.mu.RUnlock()
-		return stats.UserStats{}, false, nil
+		return zero, false, nil
 	}
 
 	if m.now().Before(entry.expiresAt) {
@@ -56,21 +54,21 @@ func (m *Memory) Get(
 
 	entry, found = m.entries[key]
 	if !found {
-		return stats.UserStats{}, false, nil
+		return zero, false, nil
 	}
 
 	if !m.now().Before(entry.expiresAt) {
 		delete(m.entries, key)
-		return stats.UserStats{}, false, nil
+		return zero, false, nil
 	}
 
 	return entry.value, true, nil
 }
 
-func (m *Memory) Set(
+func (m *Memory[T]) Set(
 	ctx context.Context,
 	key string,
-	value stats.UserStats,
+	value T,
 	ttl time.Duration,
 ) error {
 	if err := ctx.Err(); err != nil {
@@ -81,7 +79,7 @@ func (m *Memory) Set(
 		return ErrInvalidTTL
 	}
 
-	entry := memoryEntry{
+	entry := memoryEntry[T]{
 		value:     value,
 		expiresAt: m.now().Add(ttl),
 	}

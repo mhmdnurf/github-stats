@@ -9,13 +9,19 @@ import (
 	"testing"
 	"time"
 
+	"github.com/mhmdnurf/github-stats/internal/languages"
 	"github.com/mhmdnurf/github-stats/internal/stats"
+)
+
+var (
+	_ stats.Cache     = (*Memory[stats.UserStats])(nil)
+	_ languages.Cache = (*Memory[languages.UserLanguages])(nil)
 )
 
 func TestMemoryGetSetAndExpiration(t *testing.T) {
 	now := time.Date(2026, time.July, 13, 0, 0, 0, 0, time.UTC)
 
-	memory := NewMemory()
+	memory := NewMemory[stats.UserStats]()
 	memory.now = func() time.Time {
 		return now
 	}
@@ -67,7 +73,7 @@ func TestMemoryGetSetAndExpiration(t *testing.T) {
 }
 
 func TestMemoryRejectsInvalidTTL(t *testing.T) {
-	memory := NewMemory()
+	memory := NewMemory[stats.UserStats]()
 	value := stats.UserStats{Username: "mhmdnurf"}
 
 	tests := []time.Duration{
@@ -94,7 +100,7 @@ func TestMemoryRejectsInvalidTTL(t *testing.T) {
 }
 
 func TestMemoryRespectsCanceledContext(t *testing.T) {
-	memory := NewMemory()
+	memory := NewMemory[stats.UserStats]()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
@@ -118,7 +124,7 @@ func TestMemoryRespectsCanceledContext(t *testing.T) {
 func TestMemoryConcurrentAccess(t *testing.T) {
 	const workers = 100
 
-	memory := NewMemory()
+	memory := NewMemory[stats.UserStats]()
 	ctx := context.Background()
 
 	var waitGroup sync.WaitGroup

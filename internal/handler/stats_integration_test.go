@@ -69,7 +69,7 @@ func TestStatsHandlerEndToEnd(t *testing.T) {
 		value: wantStats,
 	}
 
-	memoryCache := cache.NewMemory()
+	memoryCache := cache.NewMemory[stats.UserStats]()
 
 	service, err := stats.NewService(
 		fetcher,
