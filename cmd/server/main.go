@@ -12,8 +12,10 @@ import (
 	"time"
 
 	"cloud.google.com/go/firestore"
+	"github.com/mhmdnurf/github-stats/internal/cache"
 	"github.com/mhmdnurf/github-stats/internal/card"
 	"github.com/mhmdnurf/github-stats/internal/config"
+	githubclient "github.com/mhmdnurf/github-stats/internal/github"
 	"github.com/mhmdnurf/github-stats/internal/handler"
 	"github.com/mhmdnurf/github-stats/internal/languages"
 	"github.com/mhmdnurf/github-stats/internal/middleware"
@@ -28,6 +30,10 @@ const (
 
 	dynamicRateLimitPerSecond = 1
 	dynamicRateLimitBurst     = 10
+
+	dynamicGitHubRequestTimeout = 20 * time.Second
+
+	dynamicCacheTTL = 5 * time.Minute
 )
 
 func main() {
@@ -183,8 +189,34 @@ func run(logger *slog.Logger) error {
 		return fmt.Errorf("create languages handler: %w", err)
 	}
 
+	githubClient, err := githubclient.NewClient(
+		configuration.GitHubToken,
+		&http.Client{Timeout: dynamicGitHubRequestTimeout},
+	)
+	if err != nil {
+		return fmt.Errorf("create GitHub client: %w", err)
+	}
+
+	dynamicStatsService, err := stats.NewService(
+		githubClient,
+		cache.NewMemory(),
+		dynamicCacheTTL,
+	)
+	if err != nil {
+		return fmt.Errorf("create dynamic stats service: %w", err)
+	}
+
+	dynamicLanguagesService, err := languages.NewService(
+		githubClient,
+		cache.NewLanguageMemory(),
+		dynamicCacheTTL,
+	)
+	if err != nil {
+		return fmt.Errorf("create dynamic languages service: %w", err)
+	}
+
 	dynamicStatsHandler, err := handler.NewDynamicStats(
-		statsService,
+		dynamicStatsService,
 		cardRenderer,
 		logger,
 	)
@@ -193,7 +225,7 @@ func run(logger *slog.Logger) error {
 	}
 
 	dynamicLanguagesHandler, err := handler.NewDynamicLanguages(
-		languagesService,
+		dynamicLanguagesService,
 		languageRenderer,
 		logger,
 	)

@@ -14,3 +14,4 @@ main
 *.tfvars
 !*.tfvars.example
 ERROR_PIPELINE.md
+**/.DS_Store
