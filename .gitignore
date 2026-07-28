@@ -13,3 +13,4 @@ main
 *.tfstate.*
 *.tfvars
 !*.tfvars.example
+ERROR_PIPELINE.md
