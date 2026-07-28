@@ -25,6 +25,7 @@ func (stub *readerStub[T]) Get(
 func TestProviderReturnsSnapshotValue(t *testing.T) {
 	t.Parallel()
 
+	unavailableFailure := errors.New("snapshot unavailable")
 	reader := &readerStub[string]{
 		value: Snapshot[string]{
 			Value: "stored value",
@@ -33,6 +34,7 @@ func TestProviderReturnsSnapshotValue(t *testing.T) {
 	provider, err := NewProvider[string](
 		reader,
 		KindStats,
+		unavailableFailure,
 	)
 	if err != nil {
 		t.Fatalf("NewProvider() error = %v", err)
@@ -67,11 +69,13 @@ func TestProviderMapsReaderFailureToUnavailable(
 	t.Parallel()
 
 	readFailure := errors.New("Firestore unavailable")
+	unavailableFailure := errors.New("snapshot unavailable")
 	provider, err := NewProvider[string](
 		&readerStub[string]{
 			err: readFailure,
 		},
 		KindLanguages,
+		unavailableFailure,
 	)
 	if err != nil {
 		t.Fatalf("NewProvider() error = %v", err)
@@ -82,11 +86,11 @@ func TestProviderMapsReaderFailureToUnavailable(
 		"mhmdnurf",
 		repositoryScope.ScopePublic,
 	)
-	if !errors.Is(err, ErrUnavailable) {
+	if !errors.Is(err, unavailableFailure) {
 		t.Fatalf(
 			"Get() error = %v, want %v",
 			err,
-			ErrUnavailable,
+			unavailableFailure,
 		)
 	}
 	if !errors.Is(err, readFailure) {
@@ -100,11 +104,13 @@ func TestProviderMapsReaderFailureToUnavailable(
 func TestProviderPreservesContextFailure(t *testing.T) {
 	t.Parallel()
 
+	unavailableFailure := errors.New("snapshot unavailable")
 	provider, err := NewProvider[string](
 		&readerStub[string]{
 			err: context.DeadlineExceeded,
 		},
 		KindStats,
+		unavailableFailure,
 	)
 	if err != nil {
 		t.Fatalf("NewProvider() error = %v", err)
@@ -129,6 +135,7 @@ func TestNewProviderValidatesDependencies(t *testing.T) {
 	if _, err := NewProvider[string](
 		nil,
 		KindStats,
+		errors.New("snapshot unavailable"),
 	); !errors.Is(err, ErrReaderRequired) {
 		t.Fatalf(
 			"nil reader error = %v, want %v",
@@ -140,11 +147,20 @@ func TestNewProviderValidatesDependencies(t *testing.T) {
 	if _, err := NewProvider[string](
 		&readerStub[string]{},
 		Kind("unknown"),
+		errors.New("snapshot unavailable"),
 	); !errors.Is(err, ErrKindInvalid) {
 		t.Fatalf(
 			"invalid kind error = %v, want %v",
 			err,
 			ErrKindInvalid,
 		)
+	}
+
+	if _, err := NewProvider[string](
+		&readerStub[string]{},
+		KindStats,
+		nil,
+	); err == nil {
+		t.Fatal("expected nil unavailable error to be rejected")
 	}
 }

@@ -2,6 +2,7 @@ package snapshot
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	repositoryScope "github.com/mhmdnurf/github-stats/internal/repository"
@@ -15,13 +16,15 @@ type SnapshotReader[T any] interface {
 }
 
 type Provider[T any] struct {
-	reader SnapshotReader[T]
-	kind   Kind
+	reader         SnapshotReader[T]
+	kind           Kind
+	unavailableErr error
 }
 
 func NewProvider[T any](
 	reader SnapshotReader[T],
 	kind Kind,
+	unavailableErr error,
 ) (*Provider[T], error) {
 	if reader == nil {
 		return nil, ErrReaderRequired
@@ -31,9 +34,14 @@ func NewProvider[T any](
 		return nil, ErrKindInvalid
 	}
 
+	if unavailableErr == nil {
+		return nil, errors.New("snapshot unavailable error is required")
+	}
+
 	return &Provider[T]{
-		reader: reader,
-		kind:   kind,
+		reader:         reader,
+		kind:           kind,
+		unavailableErr: unavailableErr,
 	}, nil
 }
 
@@ -57,7 +65,7 @@ func (provider *Provider[T]) Get(
 	if err != nil {
 		return zero, fmt.Errorf(
 			"%w: get %s snapshot: %w",
-			ErrUnavailable,
+			provider.unavailableErr,
 			provider.kind,
 			err,
 		)

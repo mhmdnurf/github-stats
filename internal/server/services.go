@@ -79,6 +79,7 @@ func newServices(
 	statsService, err := snapshot.NewProvider(
 		statsReader,
 		snapshot.KindStats,
+		stats.ErrUnavailable,
 	)
 	if err != nil {
 		return services{}, nil, cleanupAfterError(
@@ -119,6 +120,7 @@ func newServices(
 	languagesService, err := snapshot.NewProvider(
 		languagesReader,
 		snapshot.KindLanguages,
+		languages.ErrUnavailable,
 	)
 	if err != nil {
 		return services{}, nil, cleanupAfterError(

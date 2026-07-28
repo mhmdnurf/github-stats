@@ -13,7 +13,6 @@ import (
 
 	"github.com/mhmdnurf/github-stats/internal/card"
 	repositoryScope "github.com/mhmdnurf/github-stats/internal/repository"
-	"github.com/mhmdnurf/github-stats/internal/snapshot"
 	"github.com/mhmdnurf/github-stats/internal/stats"
 )
 
@@ -437,7 +436,7 @@ func TestStatsHandlerMapsErrors(t *testing.T) {
 		},
 		{
 			name:              "snapshot unavailable",
-			serviceError:      snapshot.ErrUnavailable,
+			serviceError:      stats.ErrUnavailable,
 			wantStatus:        http.StatusServiceUnavailable,
 			wantBody:          "statistics snapshot unavailable\n",
 			wantRetryAfter:    "60",

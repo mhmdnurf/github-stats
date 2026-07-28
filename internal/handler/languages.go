@@ -11,7 +11,6 @@ import (
 	"github.com/mhmdnurf/github-stats/internal/card"
 	"github.com/mhmdnurf/github-stats/internal/languages"
 	repositoryScope "github.com/mhmdnurf/github-stats/internal/repository"
-	"github.com/mhmdnurf/github-stats/internal/snapshot"
 )
 
 type LanguagesService interface {
@@ -198,7 +197,7 @@ func (handler *Languages) ServeHTTP(
 			return
 		}
 
-		if errors.Is(err, snapshot.ErrUnavailable) {
+		if errors.Is(err, languages.ErrUnavailable) {
 			writer.Header().Set("Retry-After", "60")
 			writeError(
 				writer,

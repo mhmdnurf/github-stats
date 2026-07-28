@@ -12,7 +12,6 @@ import (
 	"github.com/mhmdnurf/github-stats/internal/card"
 	"github.com/mhmdnurf/github-stats/internal/languages"
 	repositoryScope "github.com/mhmdnurf/github-stats/internal/repository"
-	"github.com/mhmdnurf/github-stats/internal/snapshot"
 )
 
 type languagesServiceStub struct {
@@ -364,7 +363,7 @@ func TestLanguagesHandlerMapsErrors(t *testing.T) {
 		},
 		{
 			name:           "snapshot unavailable",
-			serviceError:   snapshot.ErrUnavailable,
+			serviceError:   languages.ErrUnavailable,
 			wantStatus:     http.StatusServiceUnavailable,
 			wantRetryAfter: "60",
 		},

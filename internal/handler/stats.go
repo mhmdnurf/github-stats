@@ -10,7 +10,6 @@ import (
 
 	"github.com/mhmdnurf/github-stats/internal/card"
 	repositoryScope "github.com/mhmdnurf/github-stats/internal/repository"
-	"github.com/mhmdnurf/github-stats/internal/snapshot"
 	"github.com/mhmdnurf/github-stats/internal/stats"
 )
 
@@ -199,7 +198,7 @@ func (handler *Stats) ServeHTTP(
 			return
 		}
 
-		if errors.Is(err, snapshot.ErrUnavailable) {
+		if errors.Is(err, stats.ErrUnavailable) {
 			writer.Header().Set("Retry-After", "60")
 			writeError(
 				writer,
