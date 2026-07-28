@@ -9,7 +9,7 @@ import { ThemesGallery } from "./components/sections/ThemesGallery";
 import { ApiReference } from "./components/sections/ApiReference";
 import { Deployment } from "./components/sections/Deployment";
 import { Footer } from "./components/sections/Footer";
-import { Analytics } from "@vercel/analytics/next";
+import { Analytics } from "@vercel/analytics/react";
 
 function App() {
 	return (
