@@ -1,4 +1,4 @@
-package snapshot
+package firestore
 
 import (
 	"context"
@@ -6,20 +6,25 @@ import (
 	"fmt"
 	"strings"
 
-	"cloud.google.com/go/firestore"
+	cloudfirestore "cloud.google.com/go/firestore"
+	"github.com/mhmdnurf/github-stats/internal/snapshot"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
-type Firestore[T any] struct {
-	client     *firestore.Client
+var ErrCollectionRequired = errors.New(
+	"snapshot collection is required",
+)
+
+type Store[T any] struct {
+	client     *cloudfirestore.Client
 	collection string
 }
 
-func NewFirestore[T any](
-	client *firestore.Client,
+func NewStore[T any](
+	client *cloudfirestore.Client,
 	collection string,
-) (*Firestore[T], error) {
+) (*Store[T], error) {
 	if client == nil {
 		return nil, errors.New("firestore client is required")
 	}
@@ -29,23 +34,23 @@ func NewFirestore[T any](
 		return nil, ErrCollectionRequired
 	}
 
-	return &Firestore[T]{
+	return &Store[T]{
 		client:     client,
 		collection: normalizedCollection,
 	}, nil
 }
 
-func (store *Firestore[T]) Get(
+func (store *Store[T]) Get(
 	ctx context.Context,
 	key string,
-) (Snapshot[T], error) {
+) (snapshot.Snapshot[T], error) {
 	if err := ctx.Err(); err != nil {
-		return Snapshot[T]{}, err
+		return snapshot.Snapshot[T]{}, err
 	}
 
 	normalizedKey := strings.TrimSpace(key)
 	if normalizedKey == "" {
-		return Snapshot[T]{}, ErrKeyRequired
+		return snapshot.Snapshot[T]{}, snapshot.ErrKeyRequired
 	}
 
 	document, err := store.client.
@@ -53,19 +58,19 @@ func (store *Firestore[T]) Get(
 		Doc(normalizedKey).
 		Get(ctx)
 	if status.Code(err) == codes.NotFound {
-		return Snapshot[T]{}, ErrNotFound
+		return snapshot.Snapshot[T]{}, snapshot.ErrNotFound
 	}
 	if err != nil {
-		return Snapshot[T]{}, fmt.Errorf(
+		return snapshot.Snapshot[T]{}, fmt.Errorf(
 			"get snapshot %q: %w",
 			normalizedKey,
 			err,
 		)
 	}
 
-	var value Snapshot[T]
+	var value snapshot.Snapshot[T]
 	if err := document.DataTo(&value); err != nil {
-		return Snapshot[T]{}, fmt.Errorf(
+		return snapshot.Snapshot[T]{}, fmt.Errorf(
 			"decode snapshot %q: %w",
 			normalizedKey,
 			err,
@@ -75,10 +80,10 @@ func (store *Firestore[T]) Get(
 	return value, nil
 }
 
-func (store *Firestore[T]) Set(
+func (store *Store[T]) Set(
 	ctx context.Context,
 	key string,
-	value Snapshot[T],
+	value snapshot.Snapshot[T],
 ) error {
 	if err := ctx.Err(); err != nil {
 		return err
@@ -86,7 +91,7 @@ func (store *Firestore[T]) Set(
 
 	normalizedKey := strings.TrimSpace(key)
 	if normalizedKey == "" {
-		return ErrKeyRequired
+		return snapshot.ErrKeyRequired
 	}
 
 	_, err := store.client.
@@ -104,4 +109,4 @@ func (store *Firestore[T]) Set(
 	return nil
 }
 
-var _ Store[any] = (*Firestore[any])(nil)
+var _ snapshot.Store[any] = (*Store[any])(nil)

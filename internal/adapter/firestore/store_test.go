@@ -1,27 +1,27 @@
-package snapshot
+package firestore
 
 import (
 	"errors"
 	"testing"
 
-	"cloud.google.com/go/firestore"
+	cloudfirestore "cloud.google.com/go/firestore"
 )
 
-func TestNewFirestoreValidatesConfiguration(t *testing.T) {
-	_, err := NewFirestore[string](nil, "snapshots")
+func TestNewStoreValidatesConfiguration(t *testing.T) {
+	_, err := NewStore[string](nil, "snapshots")
 	if err == nil {
 		t.Fatal("expected nil client to be rejected")
 	}
 
-	_, err = NewFirestore[string](&firestore.Client{}, " ")
+	_, err = NewStore[string](&cloudfirestore.Client{}, " ")
 	if !errors.Is(err, ErrCollectionRequired) {
 		t.Fatalf("unexpected collection error: %v", err)
 	}
 }
 
-func TestNewFirestoreNormalizesCollection(t *testing.T) {
-	store, err := NewFirestore[string](
-		&firestore.Client{},
+func TestNewStoreNormalizesCollection(t *testing.T) {
+	store, err := NewStore[string](
+		&cloudfirestore.Client{},
 		" snapshots ",
 	)
 	if err != nil {

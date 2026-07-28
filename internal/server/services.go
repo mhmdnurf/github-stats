@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/firestore"
+	firestoreadapter "github.com/mhmdnurf/github-stats/internal/adapter/firestore"
 	"github.com/mhmdnurf/github-stats/internal/cache"
 	"github.com/mhmdnurf/github-stats/internal/config"
 	githubclient "github.com/mhmdnurf/github-stats/internal/github"
@@ -53,7 +54,7 @@ func newServices(
 		return nil
 	}
 
-	statsStore, err := snapshot.NewFirestore[stats.UserStats](
+	statsStore, err := firestoreadapter.NewStore[stats.UserStats](
 		firestoreClient,
 		configuration.FirestoreCollection,
 	)
@@ -87,7 +88,7 @@ func newServices(
 	}
 
 	languagesStore, err :=
-		snapshot.NewFirestore[languages.UserLanguages](
+		firestoreadapter.NewStore[languages.UserLanguages](
 			firestoreClient,
 			configuration.FirestoreCollection,
 		)

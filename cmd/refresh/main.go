@@ -12,11 +12,11 @@ import (
 	"time"
 
 	"cloud.google.com/go/firestore"
+	firestoreadapter "github.com/mhmdnurf/github-stats/internal/adapter/firestore"
 	"github.com/mhmdnurf/github-stats/internal/config"
 	githubclient "github.com/mhmdnurf/github-stats/internal/github"
 	"github.com/mhmdnurf/github-stats/internal/languages"
 	"github.com/mhmdnurf/github-stats/internal/refresh"
-	"github.com/mhmdnurf/github-stats/internal/snapshot"
 	"github.com/mhmdnurf/github-stats/internal/stats"
 )
 
@@ -102,7 +102,7 @@ func run(
 		}
 	}()
 
-	statsStore, err := snapshot.NewFirestore[stats.UserStats](
+	statsStore, err := firestoreadapter.NewStore[stats.UserStats](
 		firestoreClient,
 		configuration.FirestoreCollection,
 	)
@@ -111,7 +111,7 @@ func run(
 	}
 
 	languagesStore, err :=
-		snapshot.NewFirestore[languages.UserLanguages](
+		firestoreadapter.NewStore[languages.UserLanguages](
 			firestoreClient,
 			configuration.FirestoreCollection,
 		)
