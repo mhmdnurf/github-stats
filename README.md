@@ -78,8 +78,11 @@ FIRESTORE_COLLECTION=github_stats_snapshots
 HTTP_ADDRESS=:9000
 ```
 
-The server uses Application Default Credentials to read Firestore. The GitHub
-token is used only by the snapshot refresh command.
+The server uses Application Default Credentials to read Firestore. `GITHUB_TOKEN`
+is also required by the server itself (not just the snapshot refresh command):
+it powers the on-demand `/{username}/stats` and `/{username}/languages`
+endpoints, which fetch live GitHub data directly instead of reading a
+snapshot.
 
 > [!WARNING]
 > Never commit `.env` or expose your GitHub token in client-side code, logs, or
@@ -269,7 +272,7 @@ Returns `200 OK` when the server is running.
 | Variable | Required | Default | Description |
 |---|---|---|---|
 | `GITHUB_USERNAME` | Yes | — | GitHub account displayed by the card |
-| `GITHUB_TOKEN` | Refresh only | — | Token used by the refresh job |
+| `GITHUB_TOKEN` | Yes | — | Token used by the refresh job and by the server's `/{username}` endpoints |
 | `GOOGLE_CLOUD_PROJECT` | Yes | — | Project containing Firestore |
 | `FIRESTORE_COLLECTION` | No | `github_stats_snapshots` | Snapshot collection |
 | `HTTP_ADDRESS` | No | `:9000` | HTTP server listening address |
