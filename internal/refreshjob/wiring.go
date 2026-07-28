@@ -11,8 +11,8 @@ import (
 
 	"cloud.google.com/go/firestore"
 	firestoreadapter "github.com/mhmdnurf/github-stats/internal/adapter/firestore"
+	githubclient "github.com/mhmdnurf/github-stats/internal/adapter/github"
 	"github.com/mhmdnurf/github-stats/internal/config"
-	githubclient "github.com/mhmdnurf/github-stats/internal/github"
 	"github.com/mhmdnurf/github-stats/internal/languages"
 	"github.com/mhmdnurf/github-stats/internal/refresh"
 	"github.com/mhmdnurf/github-stats/internal/stats"
