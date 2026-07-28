@@ -1,0 +1,282 @@
+<svg
+        xmlns="http://www.w3.org/2000/svg"
+        width="495"
+        height="240"
+        viewBox="0 0 495 240"
+        role="img"
+        aria-label="octocat most used programming languages"
+>
+    <title>octocat most used programming languages</title>
+
+    <style>
+        text {
+        font-family: -apple-system, BlinkMacSystemFont,
+        "Segoe UI", Ubuntu, sans-serif;
+        }
+
+        .header {
+        font-size: 18px;
+        font-weight: 600;
+        }
+
+        .sub {
+        font-size: 11.5px;
+        font-weight: 400;
+        }
+
+        .language {
+        font-size: 13px;
+        font-weight: 500;
+        }
+
+        .percentage {
+        font-size: 12px;
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+        * {
+        animation: none !important;
+        }
+        }
+    </style>
+
+    <rect
+            x="0.5"
+            y="0.5"
+            width="494"
+            height="239"
+            rx="10"
+            fill="#282a36"
+            stroke="#44475a"
+    />
+
+    <text
+            x="28"
+            y="42"
+            class="header"
+            fill="#f8f8f2"
+    >Most Used Languages</text>
+
+    <text
+            x="28"
+            y="62"
+            class="sub"
+            fill="#6272a4"
+    >@octocat · public active repositories</text>
+
+    
+    
+    <circle
+            cx="34"
+            cy="91"
+            r="5"
+            fill="#e34c26"
+    />
+
+    <text
+            x="48"
+            y="91"
+            class="language"
+            fill="#f8f8f2"
+            dominant-baseline="middle"
+    >HTML</text>
+
+    <text
+            x="467"
+            y="91"
+            class="percentage"
+            fill="#6272a4"
+            text-anchor="end"
+            dominant-baseline="middle"
+    >39.7%</text>
+
+    <rect
+            x="170"
+            y="87"
+            width="245"
+            height="8"
+            rx="4"
+            fill="#343746"
+    />
+
+    <rect
+            x="170"
+            y="87"
+            width="97"
+            height="8"
+            rx="4"
+            fill="#e34c26"
+    />
+    
+    <circle
+            cx="34"
+            cy="119"
+            r="5"
+            fill="#663399"
+    />
+
+    <text
+            x="48"
+            y="119"
+            class="language"
+            fill="#f8f8f2"
+            dominant-baseline="middle"
+    >CSS</text>
+
+    <text
+            x="467"
+            y="119"
+            class="percentage"
+            fill="#6272a4"
+            text-anchor="end"
+            dominant-baseline="middle"
+    >10.8%</text>
+
+    <rect
+            x="170"
+            y="115"
+            width="245"
+            height="8"
+            rx="4"
+            fill="#343746"
+    />
+
+    <rect
+            x="170"
+            y="115"
+            width="27"
+            height="8"
+            rx="4"
+            fill="#663399"
+    />
+    
+    <circle
+            cx="34"
+            cy="147"
+            r="5"
+            fill="#00ADD8"
+    />
+
+    <text
+            x="48"
+            y="147"
+            class="language"
+            fill="#f8f8f2"
+            dominant-baseline="middle"
+    >Go</text>
+
+    <text
+            x="467"
+            y="147"
+            class="percentage"
+            fill="#6272a4"
+            text-anchor="end"
+            dominant-baseline="middle"
+    >10.4%</text>
+
+    <rect
+            x="170"
+            y="143"
+            width="245"
+            height="8"
+            rx="4"
+            fill="#343746"
+    />
+
+    <rect
+            x="170"
+            y="143"
+            width="26"
+            height="8"
+            rx="4"
+            fill="#00ADD8"
+    />
+    
+    <circle
+            cx="34"
+            cy="175"
+            r="5"
+            fill="#3178c6"
+    />
+
+    <text
+            x="48"
+            y="175"
+            class="language"
+            fill="#f8f8f2"
+            dominant-baseline="middle"
+    >TypeScript</text>
+
+    <text
+            x="467"
+            y="175"
+            class="percentage"
+            fill="#6272a4"
+            text-anchor="end"
+            dominant-baseline="middle"
+    >9.8%</text>
+
+    <rect
+            x="170"
+            y="171"
+            width="245"
+            height="8"
+            rx="4"
+            fill="#343746"
+    />
+
+    <rect
+            x="170"
+            y="171"
+            width="24"
+            height="8"
+            rx="4"
+            fill="#3178c6"
+    />
+    
+    <circle
+            cx="34"
+            cy="203"
+            r="5"
+            fill="#c6538c"
+    />
+
+    <text
+            x="48"
+            y="203"
+            class="language"
+            fill="#f8f8f2"
+            dominant-baseline="middle"
+    >SCSS</text>
+
+    <text
+            x="467"
+            y="203"
+            class="percentage"
+            fill="#6272a4"
+            text-anchor="end"
+            dominant-baseline="middle"
+    >7.9%</text>
+
+    <rect
+            x="170"
+            y="199"
+            width="245"
+            height="8"
+            rx="4"
+            fill="#343746"
+    />
+
+    <rect
+            x="170"
+            y="199"
+            width="19"
+            height="8"
+            rx="4"
+            fill="#c6538c"
+    />
+    
+    
+</svg>

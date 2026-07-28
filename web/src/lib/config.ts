@@ -8,9 +8,9 @@ export const THEMES = ['default', 'light', 'dracula', 'tokyonight', 'gruvbox'] a
 export type ThemeName = (typeof THEMES)[number]
 
 export function statsCardUrl(theme: ThemeName) {
-  return `${SITE.liveDemoUrl}/stats?theme=${theme}`
+  return `/cards/stats-${theme}.svg`
 }
 
 export function languagesCardUrl(theme: ThemeName) {
-  return `${SITE.liveDemoUrl}/languages?theme=${theme}`
+  return `/cards/languages-${theme}.svg`
 }
