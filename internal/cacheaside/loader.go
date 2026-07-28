@@ -131,7 +131,7 @@ func (loader *Loader[T]) getCached(
 
 	cached, found, err := loader.cache.Get(ctx, key)
 	if err != nil {
-		return zero, fmt.Errorf(
+		return zero, false, fmt.Errorf(
 			"get cached %s: %w",
 			loader.resource,
 			err,

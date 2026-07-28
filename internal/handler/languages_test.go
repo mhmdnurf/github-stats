@@ -186,11 +186,11 @@ func TestLanguagesHandlerReturnsSVG(t *testing.T) {
 				)
 			}
 
-			if themeName != card.LightTheme {
+			if themeName != configuredTestTheme {
 				t.Fatalf(
 					"unexpected theme: got %q, want %q",
 					themeName,
-					card.LightTheme,
+					configuredTestTheme,
 				)
 			}
 

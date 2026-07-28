@@ -15,7 +15,10 @@ import (
 	"github.com/mhmdnurf/github-stats/internal/stats"
 )
 
-const configuredTestUsername = "mhmdnurf"
+const (
+	configuredTestTheme    = "light"
+	configuredTestUsername = "mhmdnurf"
+)
 
 type statsServiceStub struct {
 	get func(
@@ -238,7 +241,7 @@ func TestStatsHandlerReturnsSVG(t *testing.T) {
 				)
 			}
 
-			if themeName != card.LightTheme {
+			if themeName != configuredTestTheme {
 				t.Fatalf("unexpected theme: %q", themeName)
 			}
 
