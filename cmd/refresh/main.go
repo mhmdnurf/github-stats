@@ -4,27 +4,16 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"net/http"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
 	"time"
 
-	"cloud.google.com/go/firestore"
-	firestoreadapter "github.com/mhmdnurf/github-stats/internal/adapter/firestore"
 	"github.com/mhmdnurf/github-stats/internal/config"
-	githubclient "github.com/mhmdnurf/github-stats/internal/github"
-	"github.com/mhmdnurf/github-stats/internal/languages"
-	"github.com/mhmdnurf/github-stats/internal/refresh"
-	"github.com/mhmdnurf/github-stats/internal/stats"
+	"github.com/mhmdnurf/github-stats/internal/refreshjob"
 )
 
-const (
-	githubRequestTimeout = 15 * time.Second
-	refreshJobTimeout    = 2 * time.Minute
-	snapshotFreshness    = 30 * time.Minute
-)
+const refreshJobTimeout = 2 * time.Minute
 
 func main() {
 	logger := slog.New(
@@ -68,87 +57,23 @@ func run(
 		return fmt.Errorf("load configuration: %w", err)
 	}
 
-	projectID := strings.TrimSpace(
-		configuration.GoogleCloudProjectID,
-	)
-	if projectID == "" {
-		return fmt.Errorf("GOOGLE_CLOUD_PROJECT is required")
-	}
-
-	githubClient, err := githubclient.NewClient(
-		configuration.GitHubToken,
-		&http.Client{
-			Timeout: githubRequestTimeout,
-		},
-	)
-	if err != nil {
-		return fmt.Errorf("create GitHub client: %w", err)
-	}
-
-	firestoreClient, err := firestore.NewClient(
+	job, err := refreshjob.New(
 		ctx,
-		projectID,
+		configuration,
+		logger,
 	)
 	if err != nil {
-		return fmt.Errorf("create Firestore client: %w", err)
+		return err
 	}
 	defer func() {
-		if err := firestoreClient.Close(); err != nil {
+		if err := job.Close(); err != nil {
 			logger.Error(
-				"close Firestore client",
+				"close refresh job resources",
 				"error",
 				err,
 			)
 		}
 	}()
 
-	statsStore, err := firestoreadapter.NewStore[stats.UserStats](
-		firestoreClient,
-		configuration.FirestoreCollection,
-	)
-	if err != nil {
-		return fmt.Errorf("create stats snapshot store: %w", err)
-	}
-
-	languagesStore, err :=
-		firestoreadapter.NewStore[languages.UserLanguages](
-			firestoreClient,
-			configuration.FirestoreCollection,
-		)
-	if err != nil {
-		return fmt.Errorf(
-			"create languages snapshot store: %w",
-			err,
-		)
-	}
-
-	refreshService, err := refresh.NewService(
-		configuration.GitHubUsername,
-		githubClient,
-		githubClient,
-		statsStore,
-		languagesStore,
-		snapshotFreshness,
-	)
-	if err != nil {
-		return fmt.Errorf("create refresh service: %w", err)
-	}
-
-	logger.Info(
-		"snapshot refresh started",
-		"username",
-		configuration.GitHubUsername,
-	)
-
-	if err := refreshService.Run(ctx); err != nil {
-		return fmt.Errorf("refresh snapshots: %w", err)
-	}
-
-	logger.Info(
-		"snapshot refresh completed",
-		"username",
-		configuration.GitHubUsername,
-	)
-
-	return nil
+	return job.Run(ctx)
 }
