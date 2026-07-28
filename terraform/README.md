@@ -13,8 +13,16 @@ script removes that legacy access last.
 
 - Authenticated `gcloud` CLI with permission to create project resources
 - Terraform 1.7 or newer
-- Billing enabled for `mhmdnurf-github-stats`
-- A local `.env` containing `GITHUB_USERNAME` and `GITHUB_TOKEN`
+- Billing enabled for the target Google Cloud project
+- A local `.env` based on `.env.example`
+
+Load the deployment settings from `.env`:
+
+```shell
+set -a
+source .env
+set +a
+```
 
 Before the first deployment, authenticate both the Google Cloud CLI and the
 Terraform Google provider:
@@ -22,7 +30,7 @@ Terraform Google provider:
 ```shell
 gcloud auth login
 gcloud auth application-default login
-gcloud config set project mhmdnurf-github-stats
+gcloud config set project "$PROJECT_ID"
 ```
 
 ## First deployment
@@ -38,7 +46,7 @@ The defaults are:
 
 | Setting | Value |
 |---|---|
-| Project | `mhmdnurf-github-stats` |
+| Project | Required through `PROJECT_ID` or `GOOGLE_CLOUD_PROJECT` |
 | Region | `asia-southeast2` |
 | Cloud Run service | `github-stats` |
 | Cloud Run refresh job | `github-stats-refresh` |
@@ -90,9 +98,13 @@ Add these repository variables in GitHub:
 
 | Variable | Value |
 |---|---|
+| `GCP_PROJECT_ID` | Google Cloud project ID |
 | `GH_USERNAME` | GitHub account shown by the cards |
 | `GCP_WIF_PROVIDER` | `workload_identity_provider` output |
 | `GCP_DEPLOY_SERVICE_ACCOUNT` | `deployer_service_account` output |
+| `GCP_REGION` | Optional; defaults to `asia-southeast2` |
+| `GCP_SERVICE_NAME` | Optional; defaults to `github-stats` |
+| `GCP_TF_STATE_BUCKET` | Optional custom state bucket name |
 
 > [!NOTE]
 > GitHub rejects repository variable names starting with `GITHUB_`, so the
@@ -105,7 +117,8 @@ Build runs as the dedicated `github-stats-builder` service account instead of
 the project-wide Compute Engine default service account.
 
 If the deployment predates the GCS backend configuration, back up and migrate
-both local state files once before running the workflow:
+both local state files once before running the workflow. Fresh installations
+skip this migration:
 
 ```shell
 cp terraform/bootstrap/terraform.tfstate \
@@ -113,10 +126,10 @@ cp terraform/bootstrap/terraform.tfstate \
 cp terraform/app/terraform.tfstate \
   terraform/app/terraform.tfstate.backup-manual
 terraform -chdir=terraform/bootstrap init -migrate-state \
-  -backend-config="bucket=mhmdnurf-github-stats-github-stats-tfstate" \
+  -backend-config="bucket=${TF_STATE_BUCKET}" \
   -backend-config="prefix=bootstrap"
 terraform -chdir=terraform/app init -migrate-state \
-  -backend-config="bucket=mhmdnurf-github-stats-github-stats-tfstate" \
+  -backend-config="bucket=${TF_STATE_BUCKET}" \
   -backend-config="prefix=app"
 ```
 
@@ -125,13 +138,22 @@ administrator identity before rerunning the application-only workflow:
 
 ```shell
 terraform -chdir=terraform/bootstrap init -reconfigure \
-  -backend-config="bucket=mhmdnurf-github-stats-github-stats-tfstate" \
+  -backend-config="bucket=${TF_STATE_BUCKET}" \
   -backend-config="prefix=bootstrap"
 terraform -chdir=terraform/bootstrap plan \
+  -var="project_id=${PROJECT_ID}" \
+  -var="github_repository=${GITHUB_REPOSITORY}" \
   -var="retain_legacy_runtime_secret_access=false"
 terraform -chdir=terraform/bootstrap apply \
+  -var="project_id=${PROJECT_ID}" \
+  -var="github_repository=${GITHUB_REPOSITORY}" \
   -var="retain_legacy_runtime_secret_access=false"
 ```
+
+For the complete fork setup, including `.env`, first bootstrap, GitHub Actions,
+verification, upgrades, and state migration, see
+the [self-hosting and deployment section](../README.md#deployment) in the main
+README.
 
 ## Deployment settings
 

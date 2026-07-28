@@ -4,7 +4,14 @@ set -euo pipefail
 
 root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-project_id="${PROJECT_ID:-mhmdnurf-github-stats}"
+if [[ -f "${root_dir}/.env" ]]; then
+  set -a
+  # shellcheck disable=SC1091
+  source "${root_dir}/.env"
+  set +a
+fi
+
+project_id="${PROJECT_ID:-${GOOGLE_CLOUD_PROJECT:-}}"
 region="${REGION:-asia-southeast2}"
 service_name="${SERVICE_NAME:-github-stats}"
 artifact_repository="${ARTIFACT_REPOSITORY:-github-stats}"
@@ -20,15 +27,19 @@ refresh_schedule="${REFRESH_SCHEDULE:-*/15 * * * *}"
 refresh_job_name="${service_name}-refresh"
 run_initial_refresh="${RUN_INITIAL_REFRESH:-true}"
 deploy_mode="${DEPLOY_MODE:-all}"
+github_repository="${GITHUB_REPOSITORY:-}"
 
-if [[ -f "${root_dir}/.env" ]]; then
-  set -a
-  # shellcheck disable=SC1091
-  source "${root_dir}/.env"
-  set +a
-fi
-
+: "${project_id:?PROJECT_ID or GOOGLE_CLOUD_PROJECT must be set in .env or the environment}"
 : "${GITHUB_USERNAME:?GITHUB_USERNAME must be set in .env or the environment}"
+
+if [[ "${deploy_mode}" == "all" ]]; then
+  : "${github_repository:?GITHUB_REPOSITORY must be set to owner/repository for bootstrap deployment}"
+
+  if [[ ! "${github_repository}" =~ ^[^/]+/[^/]+$ ]]; then
+    echo "GITHUB_REPOSITORY must use the owner/repository format" >&2
+    exit 1
+  fi
+fi
 
 for command in gcloud terraform; do
   if ! command -v "${command}" >/dev/null 2>&1; then
@@ -60,6 +71,10 @@ if [[ "${deploy_mode}" == "all" ]]; then
       --uniform-bucket-level-access
   fi
 
+  gcloud storage buckets update "gs://${state_bucket}" \
+    --project="${project_id}" \
+    --versioning
+
   terraform_init "terraform/bootstrap" "bootstrap"
 
   terraform -chdir="${root_dir}/terraform/bootstrap" apply \
@@ -67,7 +82,7 @@ if [[ "${deploy_mode}" == "all" ]]; then
     -var="project_id=${project_id}" \
     -var="region=${region}" \
     -var="service_name=${service_name}" \
-    -var="state_bucket=${state_bucket}" \
+    -var="github_repository=${github_repository}" \
     -var="retain_legacy_runtime_secret_access=true"
 
   if [[ -n "${GITHUB_TOKEN:-}" ]]; then
@@ -126,6 +141,6 @@ if [[ "${deploy_mode}" == "all" ]]; then
     -var="project_id=${project_id}" \
     -var="region=${region}" \
     -var="service_name=${service_name}" \
-    -var="state_bucket=${state_bucket}" \
+    -var="github_repository=${github_repository}" \
     -var="retain_legacy_runtime_secret_access=false"
 fi

@@ -56,7 +56,7 @@ other Markdown documents.
 ### 1. Clone the repository
 
 ```shell
-git clone https://github.com/mhmdnurf/github-stats.git
+git clone https://github.com/OWNER/github-stats.git
 cd github-stats
 ```
 
@@ -71,7 +71,7 @@ cp .env.example .env
 Add the GitHub username to display and your GitHub token:
 
 ```dotenv
-GITHUB_USERNAME=mhmdnurf
+GITHUB_USERNAME=your-github-username
 GITHUB_TOKEN=your_github_token
 GOOGLE_CLOUD_PROJECT=your-gcp-project
 FIRESTORE_COLLECTION=github_stats_snapshots
@@ -287,6 +287,11 @@ capabilities, and the `no-new-privileges` security option.
 
 Choose the deployment approach that matches your infrastructure.
 
+| Mode | Best for | Requirements |
+|---|---|---|
+| Docker Compose | Local use or an existing server | Docker, Docker Compose, and a Firestore database |
+| Google Cloud Run | Managed public hosting and GitHub Actions deployment | A billed Google Cloud project, `gcloud`, and Terraform |
+
 ### Conventional Docker deployment
 
 For a VPS, a self-managed server, or any platform that runs Docker, create a
@@ -334,52 +339,213 @@ The default deployment creates three operational resources:
 - `github-stats-refresh`: private Cloud Run Job
 - `github-stats-refresh-schedule`: 15-minute Cloud Scheduler trigger
 
-Before using it in another Google Cloud project:
+#### Prerequisites
 
-1. Enable billing and authenticate `gcloud` and Application Default
-   Credentials.
-2. Create a local `.env` containing `GITHUB_USERNAME` and `GITHUB_TOKEN`.
-3. Export the deployment settings used by `scripts/deploy.sh`. The state bucket
-   name must be globally unique:
+- A Google Cloud project with billing enabled
+- Google Cloud CLI
+- Terraform 1.7 or newer
+- Permission to enable APIs and manage IAM, service accounts, Storage,
+  Artifact Registry, Firestore, Secret Manager, Cloud Run, and Cloud Scheduler
 
-   ```shell
-   export PROJECT_ID=your-gcp-project
-   export REGION=asia-southeast2
-   export SERVICE_NAME=github-stats
-   export TF_STATE_BUCKET=your-unique-terraform-state-bucket
-   ```
+Using Project Owner for the initial bootstrap is the simplest option. If you do
+so, remove that broad access afterward and use the generated deployer service
+account for routine GitHub Actions deployments.
 
-4. Change `github_repository` in `terraform/bootstrap/variables.tf` to the
-   `owner/repository` allowed to deploy through GitHub Actions.
-5. Run the one-command deployment:
+#### Configure your fork
 
-   ```shell
-   ./scripts/deploy.sh
-   ```
+Fork the repository, follow the [Quick Start](#quick-start), and add these
+deployment settings to the local `.env`:
 
-See [terraform/README.md](terraform/README.md) for prerequisites, first
-deployment, verification, and GitHub Actions configuration.
+```dotenv
+GITHUB_REPOSITORY=OWNER/github-stats
+PROJECT_ID=your-gcp-project
+GOOGLE_CLOUD_PROJECT=your-gcp-project
+REGION=asia-southeast2
+SERVICE_NAME=github-stats
+TF_STATE_BUCKET=your-globally-unique-terraform-state-bucket
+```
 
-The included GitHub Actions workflow contains project-specific default values.
-For another project, update `PROJECT_ID`, `REGION`, and `SERVICE_NAME` in
-`.github/workflows/deploy.yml`, then configure the `GITHUB_USERNAME`,
-`GCP_WIF_PROVIDER`, and `GCP_DEPLOY_SERVICE_ACCOUNT` repository variables
-described in the Terraform guide.
+`PROJECT_ID` configures the deployment tooling. `GOOGLE_CLOUD_PROJECT`
+configures the application when it runs outside Terraform. They normally have
+the same value. Keep `.env` local; it is ignored by Git and must never be
+committed.
 
-### Live deployment
+Load the settings into the current shell:
 
-This is an example deployment that is currently live on Google Cloud Run:
+```shell
+set -a
+source .env
+set +a
+```
+
+The refresh job uses the GitHub GraphQL API. Public-only statistics require
+access to public GitHub data. Private repository aggregates require read access
+to the selected private repositories. Prefer a fine-grained token restricted
+to the repositories you intend to include.
+
+Authenticate both the Google Cloud CLI and the Terraform provider:
+
+```shell
+gcloud auth login
+gcloud auth application-default login
+gcloud config set project "$PROJECT_ID"
+```
+
+#### First deployment
+
+Run from the repository root:
+
+```shell
+./scripts/deploy.sh
+```
+
+The first deployment:
+
+1. Creates the versioned GCS Terraform state bucket if needed.
+2. Enables the required Google Cloud APIs.
+3. Creates dedicated runtime, refresh, scheduler, deployer, and builder service
+   accounts.
+4. Configures Workload Identity Federation for your fork.
+5. Stores the GitHub token in Secret Manager.
+6. Builds the container with Cloud Build.
+7. Runs the initial refresh job.
+8. Deploys the public Cloud Run service and scheduler.
+
+The state bucket name must be globally unique. Fresh installations write state
+to:
 
 ```text
-https://github-stats-y3q7dn6rrq-et.a.run.app
+gs://STATE_BUCKET/bootstrap/default.tfstate
+gs://STATE_BUCKET/app/default.tfstate
 ```
 
-You can use its cards in Markdown as an example:
+#### Configure GitHub Actions
 
-```markdown
-![GitHub statistics](https://github-stats-y3q7dn6rrq-et.a.run.app/stats?theme=default&repositories=all)
-![Most used languages](https://github-stats-y3q7dn6rrq-et.a.run.app/languages?theme=default&repositories=all)
+Read the generated bootstrap outputs:
+
+```shell
+terraform -chdir=terraform/bootstrap output -raw workload_identity_provider
+terraform -chdir=terraform/bootstrap output -raw deployer_service_account
 ```
+
+In the fork, open **Settings → Secrets and variables → Actions → Variables** and
+add:
+
+| Variable | Required | Value |
+|---|---:|---|
+| `GCP_PROJECT_ID` | Yes | Google Cloud project ID |
+| `GH_USERNAME` | Yes | GitHub account displayed by the cards |
+| `GCP_WIF_PROVIDER` | Yes | `workload_identity_provider` Terraform output |
+| `GCP_DEPLOY_SERVICE_ACCOUNT` | Yes | `deployer_service_account` Terraform output |
+| `GCP_REGION` | No | Defaults to `asia-southeast2` |
+| `GCP_SERVICE_NAME` | No | Defaults to `github-stats` |
+| `GCP_TF_STATE_BUCKET` | No | Required only when it differs from `${PROJECT_ID}-${SERVICE_NAME}-tfstate` |
+
+The workflow uses GitHub's built-in `GITHUB_REPOSITORY` value, so a fork is
+restricted to its own `OWNER/repository` identity after the local bootstrap.
+It deploys on pushes to `main` and can also be run manually from the Actions
+tab. It does not store a Google service-account key or GitHub token.
+
+#### Verify the deployment
+
+Get the service URL and check its health:
+
+```shell
+SERVICE_URL="$(gcloud run services describe "$SERVICE_NAME" \
+  --project="$PROJECT_ID" \
+  --region="$REGION" \
+  --format='value(status.url)')"
+curl "${SERVICE_URL}/health"
+```
+
+Check the latest refresh execution:
+
+```shell
+gcloud run jobs executions list \
+  --project="$PROJECT_ID" \
+  --region="$REGION" \
+  --job="${SERVICE_NAME}-refresh" \
+  --limit=1
+```
+
+Verify remote Terraform state:
+
+```shell
+gcloud storage ls --recursive "gs://${TF_STATE_BUCKET}/**"
+terraform -chdir=terraform/bootstrap state list
+terraform -chdir=terraform/app state list
+```
+
+#### Updating an installation
+
+Routine pushes deploy application changes through GitHub Actions. Changes to
+`terraform/bootstrap` must first be applied locally by an administrator:
+
+```shell
+terraform -chdir=terraform/bootstrap init -reconfigure \
+  -backend-config="bucket=${TF_STATE_BUCKET}" \
+  -backend-config="prefix=bootstrap"
+terraform -chdir=terraform/bootstrap plan \
+  -var="project_id=${PROJECT_ID}" \
+  -var="github_repository=${GITHUB_REPOSITORY}" \
+  -var="retain_legacy_runtime_secret_access=false"
+terraform -chdir=terraform/bootstrap apply \
+  -var="project_id=${PROJECT_ID}" \
+  -var="github_repository=${GITHUB_REPOSITORY}" \
+  -var="retain_legacy_runtime_secret_access=false"
+```
+
+Review every plan before applying it.
+
+#### Existing installations with local state
+
+This applies only to installations created before the GCS backend was added.
+Fresh forks should skip it. Back up both local state files, then migrate them:
+
+```shell
+cp terraform/bootstrap/terraform.tfstate \
+  terraform/bootstrap/terraform.tfstate.backup-manual
+cp terraform/app/terraform.tfstate \
+  terraform/app/terraform.tfstate.backup-manual
+terraform -chdir=terraform/bootstrap init -migrate-state \
+  -backend-config="bucket=${TF_STATE_BUCKET}" \
+  -backend-config="prefix=bootstrap"
+terraform -chdir=terraform/app init -migrate-state \
+  -backend-config="bucket=${TF_STATE_BUCKET}" \
+  -backend-config="prefix=app"
+```
+
+Do not use `-reconfigure` for the first migration because it does not copy
+local state into the new backend.
+
+#### Operations and security
+
+- Google Cloud resources can incur charges. Review Cloud Run, Cloud Build,
+  Firestore, Artifact Registry, Scheduler, Secret Manager, and Storage pricing.
+- Keep the Terraform state bucket private; state can contain sensitive
+  metadata.
+- Keep local state backups until a full deployment succeeds.
+- Rotate the GitHub token by adding a new Secret Manager version.
+- Do not grant the runtime service account access to the GitHub token.
+- Review a full `terraform plan` before changing or removing infrastructure.
+- Firestore deletion protection is enabled. Cleanup requires an explicit,
+  separately reviewed change.
+
+#### Troubleshooting
+
+| Symptom | Check |
+|---|---|
+| Authentication fails before deployment | Confirm `GCP_WIF_PROVIDER` and `GCP_DEPLOY_SERVICE_ACCOUNT` match outputs from the same project |
+| `PROJECT_ID` or username is missing | Confirm `GCP_PROJECT_ID` and `GH_USERNAME` exist as repository variables |
+| Cloud Build cannot access its bucket | Reapply `terraform/bootstrap` and verify the builder bucket IAM bindings |
+| Cloud Run cannot read the image | Verify the deployer has Artifact Registry Reader on the image repository |
+| Terraform reports that a resource already exists | Verify both GCS state objects exist and the workflow uses the same state bucket |
+| The service returns `503` | Confirm the refresh job completed and snapshots exist in Firestore |
+
+For deeper diagnostics, inspect the failing GitHub Actions step, its linked
+Cloud Build log, and the corresponding Terraform state before changing IAM or
+importing resources. See [terraform/README.md](terraform/README.md) for the
+Terraform reference.
 
 ## Development
 

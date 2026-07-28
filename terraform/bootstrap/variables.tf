@@ -1,7 +1,6 @@
 variable "project_id" {
   type        = string
   description = "Google Cloud project ID."
-  default     = "mhmdnurf-github-stats"
 }
 
 variable "region" {
@@ -16,16 +15,14 @@ variable "service_name" {
   default     = "github-stats"
 }
 
-variable "state_bucket" {
-  type        = string
-  description = "Existing GCS bucket used for Terraform state."
-  default     = "mhmdnurf-github-stats-github-stats-tfstate"
-}
-
 variable "github_repository" {
   type        = string
   description = "GitHub repository allowed to deploy through Workload Identity Federation."
-  default     = "mhmdnurf/github-stats"
+
+  validation {
+    condition     = can(regex("^[^/]+/[^/]+$", var.github_repository))
+    error_message = "github_repository must use the owner/repository format."
+  }
 }
 
 variable "retain_legacy_runtime_secret_access" {

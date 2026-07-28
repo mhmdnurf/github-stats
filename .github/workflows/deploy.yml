@@ -15,11 +15,11 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      PROJECT_ID: mhmdnurf-github-stats
-      REGION: asia-southeast2
-      SERVICE_NAME: github-stats
+      PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+      REGION: ${{ vars.GCP_REGION || 'asia-southeast2' }}
+      SERVICE_NAME: ${{ vars.GCP_SERVICE_NAME || 'github-stats' }}
+      TF_STATE_BUCKET: ${{ vars.GCP_TF_STATE_BUCKET }}
       GITHUB_USERNAME: ${{ vars.GH_USERNAME }}
-      BUILD_SERVICE_ACCOUNT: github-stats-builder@mhmdnurf-github-stats.iam.gserviceaccount.com
       DEPLOY_MODE: application
 
     steps:
