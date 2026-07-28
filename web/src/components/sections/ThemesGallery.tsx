@@ -34,7 +34,7 @@ export function ThemesGallery() {
           <img src={statsCardUrl(active)} alt={`Statistics card, ${active} theme`} loading="lazy" />
           <img src={languagesCardUrl(active)} alt={`Languages card, ${active} theme`} loading="lazy" />
         </div>
-        <CodeBlock language="text" code={`https://your-domain.example/stats?theme=${active}`} />
+        <CodeBlock language="text" code={`https://your-domain/stats?theme=${active}`} />
       </Card>
     </Section>
   )

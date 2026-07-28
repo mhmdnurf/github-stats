@@ -7,7 +7,7 @@ const FEATURES = [
   { title: 'In-memory L1 cache', desc: 'Snapshots are preloaded into memory with stale fallback on storage errors.' },
   { title: 'Multiple themes', desc: 'Ships with default, light, dracula, tokyonight, and gruvbox themes.' },
   { title: 'Cloud Run ready', desc: 'Deploy as a Cloud Run Service with a Cloud Run Job and Scheduler for refreshes.' },
-  { title: 'No GitHub calls on request path', desc: 'Public card requests are served entirely from Firestore snapshots.' },
+  { title: 'Snapshot-backed profile cards', desc: 'Configured-account card requests are served entirely from Firestore snapshots.' },
 ]
 
 export function Features() {
@@ -16,7 +16,7 @@ export function Features() {
       id="features"
       eyebrow="Why GitHub Stats"
       title="Built for reliability, not just looks"
-      description="Every card request is served from a persisted snapshot, so your profile never waits on a live GitHub API call."
+      description="Configured-account cards use persisted snapshots for reliability, while dynamic username endpoints can render public cards on demand."
     >
       <div className="feature-grid">
         {FEATURES.map((feature) => (

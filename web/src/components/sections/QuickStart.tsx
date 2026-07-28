@@ -32,7 +32,7 @@ export function QuickStart() {
       id="quick-start"
       eyebrow="Get started"
       title="Running locally in five steps"
-      description="The server reads Application Default Credentials for Firestore. The GitHub token is only used by the refresh job."
+      description="The server reads Application Default Credentials for Firestore. The GitHub token is used by the refresh job and by live requests to dynamic username endpoints."
     >
       <div className="step-list">
         {STEPS.map((step) => (
