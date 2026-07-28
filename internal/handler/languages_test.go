@@ -9,7 +9,6 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/mhmdnurf/github-stats/internal/card"
 	"github.com/mhmdnurf/github-stats/internal/languages"
 	repositoryScope "github.com/mhmdnurf/github-stats/internal/repository"
 )
@@ -31,7 +30,16 @@ func (stub languagesServiceStub) Get(
 }
 
 type languageCardRendererStub struct {
-	render func(languages.UserLanguages, string) ([]byte, error)
+	render        func(languages.UserLanguages, string) ([]byte, error)
+	supportsTheme func(string) bool
+}
+
+func (stub languageCardRendererStub) SupportsTheme(themeName string) bool {
+	if stub.supportsTheme == nil {
+		return true
+	}
+
+	return stub.supportsTheme(themeName)
 }
 
 func (stub languageCardRendererStub) Render(
@@ -298,6 +306,9 @@ func TestLanguagesHandlerRejectsUnknownThemeBeforeService(t *testing.T) {
 	}
 
 	renderer := languageCardRendererStub{
+		supportsTheme: func(string) bool {
+			return false
+		},
 		render: func(
 			languages.UserLanguages,
 			string,
@@ -371,12 +382,6 @@ func TestLanguagesHandlerMapsErrors(t *testing.T) {
 			name:         "unexpected service error",
 			serviceError: unexpectedServiceError,
 			wantStatus:   http.StatusInternalServerError,
-		},
-		{
-			name:               "renderer unknown theme",
-			rendererError:      card.ErrUnknownTheme,
-			wantStatus:         http.StatusBadRequest,
-			wantRendererCalled: true,
 		},
 		{
 			name:               "renderer error",

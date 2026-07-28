@@ -84,3 +84,40 @@ func TestResolveThemeRejectsUnknownTheme(t *testing.T) {
 		t.Fatalf("expected zero theme, got %+v", theme)
 	}
 }
+
+func TestSupportsTheme(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  bool
+	}{
+		{
+			name:  "empty uses default",
+			input: "",
+			want:  true,
+		},
+		{
+			name:  "normalizes supported theme",
+			input: "  LIGHT  ",
+			want:  true,
+		},
+		{
+			name:  "rejects unknown theme",
+			input: "unknown",
+			want:  false,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if got := SupportsTheme(test.input); got != test.want {
+				t.Fatalf(
+					"SupportsTheme(%q): got %t, want %t",
+					test.input,
+					got,
+					test.want,
+				)
+			}
+		})
+	}
+}

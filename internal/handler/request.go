@@ -6,7 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/mhmdnurf/github-stats/internal/card"
 	repositoryScope "github.com/mhmdnurf/github-stats/internal/repository"
 )
 
@@ -55,6 +54,7 @@ func parseCardRequestOptions(
 	request *http.Request,
 	configuredUsername string,
 	dynamicUsername bool,
+	themeValidator ThemeValidator,
 ) (cardRequestOptions, *cardRequestFailure) {
 	username := configuredUsername
 	if dynamicUsername {
@@ -70,7 +70,7 @@ func parseCardRequestOptions(
 	}
 
 	themeName := request.URL.Query().Get("theme")
-	if _, err := card.ResolveTheme(themeName); err != nil {
+	if !themeValidator.SupportsTheme(themeName) {
 		return cardRequestOptions{}, &cardRequestFailure{
 			status:  http.StatusBadRequest,
 			message: "unknown card theme",

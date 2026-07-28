@@ -4,7 +4,6 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/mhmdnurf/github-stats/internal/card"
 	"github.com/mhmdnurf/github-stats/internal/languages"
 )
 
@@ -23,6 +22,7 @@ func (handler *Languages) ServeHTTP(
 		request,
 		handler.username,
 		handler.dynamicUsername,
+		handler.renderer,
 	)
 	if failure != nil {
 		writeError(
@@ -84,15 +84,6 @@ func (handler *Languages) ServeHTTP(
 		options.themeName,
 	)
 	if err != nil {
-		if errors.Is(err, card.ErrUnknownTheme) {
-			writeError(
-				writer,
-				http.StatusBadRequest,
-				"unknown card theme",
-			)
-			return
-		}
-
 		handler.logger.ErrorContext(
 			request.Context(),
 			"render GitHub language card",

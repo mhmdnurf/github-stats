@@ -11,7 +11,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mhmdnurf/github-stats/internal/card"
 	repositoryScope "github.com/mhmdnurf/github-stats/internal/repository"
 	"github.com/mhmdnurf/github-stats/internal/stats"
 )
@@ -35,7 +34,16 @@ func (stub statsServiceStub) Get(
 }
 
 type cardRendererStub struct {
-	render func(stats.UserStats, string) ([]byte, error)
+	render        func(stats.UserStats, string) ([]byte, error)
+	supportsTheme func(string) bool
+}
+
+func (stub cardRendererStub) SupportsTheme(themeName string) bool {
+	if stub.supportsTheme == nil {
+		return true
+	}
+
+	return stub.supportsTheme(themeName)
 }
 
 func (stub cardRendererStub) Render(
@@ -450,13 +458,6 @@ func TestStatsHandlerMapsErrors(t *testing.T) {
 			wantRendererCalls: 0,
 		},
 		{
-			name:              "renderer reports unknown theme",
-			renderError:       card.ErrUnknownTheme,
-			wantStatus:        http.StatusBadRequest,
-			wantBody:          "unknown card theme\n",
-			wantRendererCalls: 1,
-		},
-		{
 			name:              "renderer failure",
 			renderError:       renderFailure,
 			wantStatus:        http.StatusInternalServerError,
@@ -564,6 +565,9 @@ func TestStatsHandlerRejectsUnknownThemeBeforeService(t *testing.T) {
 			},
 		},
 		cardRendererStub{
+			supportsTheme: func(string) bool {
+				return false
+			},
 			render: func(
 				stats.UserStats,
 				string,

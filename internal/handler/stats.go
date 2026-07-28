@@ -18,7 +18,13 @@ type StatsService interface {
 	) (stats.UserStats, error)
 }
 
+type ThemeValidator interface {
+	SupportsTheme(themeName string) bool
+}
+
 type CardRenderer interface {
+	ThemeValidator
+
 	Render(
 		userStats stats.UserStats,
 		themeName string,

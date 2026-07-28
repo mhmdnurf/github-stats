@@ -34,6 +34,10 @@ func NewLanguageRenderer() (*LanguageRenderer, error) {
 	}, nil
 }
 
+func (renderer *LanguageRenderer) SupportsTheme(themeName string) bool {
+	return SupportsTheme(themeName)
+}
+
 func (renderer *LanguageRenderer) Render(
 	userLanguages languages.UserLanguages,
 	themeName string,

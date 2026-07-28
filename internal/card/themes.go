@@ -96,3 +96,8 @@ func ResolveTheme(name string) (Theme, error) {
 	}
 	return theme, nil
 }
+
+func SupportsTheme(name string) bool {
+	_, err := ResolveTheme(name)
+	return err == nil
+}

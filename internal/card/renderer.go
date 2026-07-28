@@ -39,6 +39,10 @@ func NewRenderer() (*Renderer, error) {
 	}, nil
 }
 
+func (renderer *Renderer) SupportsTheme(themeName string) bool {
+	return SupportsTheme(themeName)
+}
+
 func (renderer *Renderer) Render(
 	userStats stats.UserStats,
 	themeName string,

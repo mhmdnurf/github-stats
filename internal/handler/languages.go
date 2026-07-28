@@ -19,6 +19,8 @@ type LanguagesService interface {
 }
 
 type LanguageCardRenderer interface {
+	ThemeValidator
+
 	Render(
 		userLanguages languages.UserLanguages,
 		themeName string,
