@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/mhmdnurf/github-stats/internal/cacheaside"
 	repositoryScope "github.com/mhmdnurf/github-stats/internal/repository"
 )
 
@@ -42,8 +43,7 @@ type Cache interface {
 
 type Service struct {
 	fetcher Fetcher
-	cache   Cache
-	ttl     time.Duration
+	loader  *cacheaside.Loader[UserLanguages]
 }
 
 func NewService(
@@ -65,10 +65,21 @@ func NewService(
 		)
 	}
 
+	loader, err := cacheaside.New[UserLanguages](
+		cache,
+		ttl,
+		"languages",
+	)
+	if err != nil {
+		return nil, fmt.Errorf(
+			"create languages cache loader: %w",
+			err,
+		)
+	}
+
 	return &Service{
 		fetcher: fetcher,
-		cache:   cache,
-		ttl:     ttl,
+		loader:  loader,
 	}, nil
 }
 
@@ -83,31 +94,16 @@ func (s *Service) Get(
 	}
 
 	key := cacheKeyPrefix + normalizedUsername + ":" + string(scope)
-	cached, found, err := s.cache.Get(ctx, key)
-	if err != nil {
-		return UserLanguages{}, fmt.Errorf(
-			"get cached languages: %w",
-			err,
-		)
-	}
-	if found {
-		return cached, nil
-	}
 
-	fetched, err := s.fetcher.FetchLanguages(ctx, normalizedUsername, scope)
-	if err != nil {
-		return UserLanguages{}, fmt.Errorf(
-			"fetch languages: %w",
-			err,
-		)
-	}
-
-	if err := s.cache.Set(ctx, key, fetched, s.ttl); err != nil {
-		return UserLanguages{}, fmt.Errorf(
-			"cache fetched languages: %w",
-			err,
-		)
-	}
-
-	return fetched, nil
+	return s.loader.Load(
+		ctx,
+		key,
+		func(ctx context.Context) (UserLanguages, error) {
+			return s.fetcher.FetchLanguages(
+				ctx,
+				normalizedUsername,
+				scope,
+			)
+		},
+	)
 }
