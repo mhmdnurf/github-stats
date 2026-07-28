@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"cloud.google.com/go/firestore"
 	"github.com/mhmdnurf/github-stats/internal/config"
@@ -12,8 +13,7 @@ import (
 type services struct {
 	configuredStats     handler.StatsService
 	configuredLanguages handler.LanguagesService
-	dynamicStats        handler.StatsService
-	dynamicLanguages    handler.LanguagesService
+	dynamic             *dynamicServices
 }
 
 func newServices(
@@ -51,6 +51,15 @@ func newServices(
 		)
 	}
 
+	serviceSet := services{
+		configuredStats:     configured.stats,
+		configuredLanguages: configured.languages,
+	}
+
+	if strings.TrimSpace(configuration.GitHubToken) == "" {
+		return serviceSet, closeServices, nil
+	}
+
 	dynamic, err := newDynamicServices(
 		configuration,
 	)
@@ -61,10 +70,7 @@ func newServices(
 		)
 	}
 
-	return services{
-		configuredStats:     configured.stats,
-		configuredLanguages: configured.languages,
-		dynamicStats:        dynamic.stats,
-		dynamicLanguages:    dynamic.languages,
-	}, closeServices, nil
+	serviceSet.dynamic = &dynamic
+
+	return serviceSet, closeServices, nil
 }

@@ -51,41 +51,50 @@ func newRouter(
 		return nil, fmt.Errorf("create languages handler: %w", err)
 	}
 
-	dynamicStatsHandler, err := handler.NewDynamicStats(
-		serviceSet.dynamicStats,
-		cardRenderer,
-		logger,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("create dynamic stats handler: %w", err)
-	}
-
-	dynamicLanguagesHandler, err := handler.NewDynamicLanguages(
-		serviceSet.dynamicLanguages,
-		languageRenderer,
-		logger,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("create dynamic languages handler: %w", err)
-	}
-
-	rateLimiter := middleware.NewRateLimiter(
-		dynamicRateLimitPerSecond,
-		dynamicRateLimitBurst,
-	)
-
 	mux := http.NewServeMux()
 	mux.Handle("/stats", statsHandler)
 	mux.Handle("/languages", languagesHandler)
-	mux.Handle(
-		"/{username}/stats",
-		rateLimiter.Middleware(dynamicStatsHandler),
-	)
-	mux.Handle(
-		"/{username}/languages",
-		rateLimiter.Middleware(dynamicLanguagesHandler),
-	)
 	mux.HandleFunc("/health", healthHandler)
+
+	if serviceSet.dynamic != nil {
+		dynamicStatsHandler, err := handler.NewDynamicStats(
+			serviceSet.dynamic.stats,
+			cardRenderer,
+			logger,
+		)
+		if err != nil {
+			return nil, fmt.Errorf(
+				"create dynamic stats handler: %w",
+				err,
+			)
+		}
+
+		dynamicLanguagesHandler, err := handler.NewDynamicLanguages(
+			serviceSet.dynamic.languages,
+			languageRenderer,
+			logger,
+		)
+		if err != nil {
+			return nil, fmt.Errorf(
+				"create dynamic languages handler: %w",
+				err,
+			)
+		}
+
+		rateLimiter := middleware.NewRateLimiter(
+			dynamicRateLimitPerSecond,
+			dynamicRateLimitBurst,
+		)
+
+		mux.Handle(
+			"/{username}/stats",
+			rateLimiter.Middleware(dynamicStatsHandler),
+		)
+		mux.Handle(
+			"/{username}/languages",
+			rateLimiter.Middleware(dynamicLanguagesHandler),
+		)
+	}
 
 	return mux, nil
 }
