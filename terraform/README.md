@@ -104,6 +104,22 @@ a Google service-account key or the GitHub API token in GitHub Actions. Cloud
 Build runs as the dedicated `github-stats-builder` service account instead of
 the project-wide Compute Engine default service account.
 
+If the deployment predates the GCS backend configuration, back up and migrate
+both local state files once before running the workflow:
+
+```shell
+cp terraform/bootstrap/terraform.tfstate \
+  terraform/bootstrap/terraform.tfstate.backup-manual
+cp terraform/app/terraform.tfstate \
+  terraform/app/terraform.tfstate.backup-manual
+terraform -chdir=terraform/bootstrap init -migrate-state \
+  -backend-config="bucket=mhmdnurf-github-stats-github-stats-tfstate" \
+  -backend-config="prefix=bootstrap"
+terraform -chdir=terraform/app init -migrate-state \
+  -backend-config="bucket=mhmdnurf-github-stats-github-stats-tfstate" \
+  -backend-config="prefix=app"
+```
+
 When bootstrap IAM resources change, apply the bootstrap stack once with an
 administrator identity before rerunning the application-only workflow:
 
