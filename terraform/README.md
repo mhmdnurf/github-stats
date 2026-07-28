@@ -5,9 +5,9 @@ Terraform state bucket, provisions the bootstrap resources, uploads the GitHub
 token from the local `.env` file to Secret Manager, builds the container with
 Cloud Build using a dedicated least-privilege builder service account, updates
 and executes the snapshot refresh job to seed Firestore, and only then deploys
-the resulting server image to Cloud Run. During the first cutover, the previous
-runtime keeps its token access until the new revision deploys successfully; the
-script removes that legacy access last.
+the resulting server image to Cloud Run. Application-only deployments assume
+the bootstrap stack has already granted the runtime and refresh service accounts
+access to the GitHub token.
 
 ## Prerequisites
 

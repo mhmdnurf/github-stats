@@ -124,6 +124,11 @@ resource "google_secret_manager_secret_iam_member" "runtime_access" {
   member    = "serviceAccount:${google_service_account.runtime.email}"
 }
 
+moved {
+  from = google_secret_manager_secret_iam_member.runtime_access[0]
+  to   = google_secret_manager_secret_iam_member.runtime_access
+}
+
 resource "google_secret_manager_secret_iam_member" "refresh_secret_access" {
   project   = var.project_id
   secret_id = google_secret_manager_secret.github_token.secret_id

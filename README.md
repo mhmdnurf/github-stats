@@ -541,12 +541,14 @@ terraform -chdir=terraform/bootstrap init -reconfigure \
   -backend-config="prefix=bootstrap"
 terraform -chdir=terraform/bootstrap plan \
   -var="project_id=${PROJECT_ID}" \
-  -var="github_repository=${GITHUB_REPOSITORY}" \
-  -var="retain_legacy_runtime_secret_access=false"
+  -var="region=${REGION:-asia-southeast2}" \
+  -var="service_name=${SERVICE_NAME:-github-stats}" \
+  -var="github_repository=${GITHUB_REPOSITORY}"
 terraform -chdir=terraform/bootstrap apply \
   -var="project_id=${PROJECT_ID}" \
-  -var="github_repository=${GITHUB_REPOSITORY}" \
-  -var="retain_legacy_runtime_secret_access=false"
+  -var="region=${REGION:-asia-southeast2}" \
+  -var="service_name=${SERVICE_NAME:-github-stats}" \
+  -var="github_repository=${GITHUB_REPOSITORY}"
 ```
 
 Review every plan before applying it.
@@ -580,7 +582,8 @@ local state into the new backend.
   metadata.
 - Keep local state backups until a full deployment succeeds.
 - Rotate the GitHub token by adding a new Secret Manager version.
-- Do not grant the runtime service account access to the GitHub token.
+- Grant Secret Manager access only to the runtime and refresh service accounts
+  that consume the GitHub token.
 - Review a full `terraform plan` before changing or removing infrastructure.
 - Firestore deletion protection is enabled. Cleanup requires an explicit,
   separately reviewed change.
@@ -593,6 +596,7 @@ local state into the new backend.
 | `PROJECT_ID` or username is missing | Confirm `GCP_PROJECT_ID` and `GH_USERNAME` exist as repository variables |
 | Cloud Build cannot access its bucket | Reapply `terraform/bootstrap` and verify the builder bucket IAM bindings |
 | Cloud Run cannot read the image | Verify the deployer has Artifact Registry Reader on the image repository |
+| Cloud Run cannot access the GitHub token | Apply `terraform/bootstrap` with an administrator identity, then rerun the application deployment |
 | Terraform reports that a resource already exists | Verify both GCS state objects exist and the workflow uses the same state bucket |
 | The service returns `503` | Confirm the refresh job completed and snapshots exist in Firestore |
 
