@@ -8,11 +8,6 @@ import (
 	"github.com/mhmdnurf/github-stats/internal/stats"
 )
 
-const (
-	cardWidth  = 495
-	cardHeight = 240
-)
-
 type Renderer struct {
 	template *template.Template
 }
