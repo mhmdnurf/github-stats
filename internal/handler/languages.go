@@ -30,10 +30,11 @@ type LanguageCardRenderer interface {
 }
 
 type Languages struct {
-	username string
-	service  LanguagesService
-	renderer LanguageCardRenderer
-	logger   *slog.Logger
+	username        string
+	dynamicUsername bool
+	service         LanguagesService
+	renderer        LanguageCardRenderer
+	logger          *slog.Logger
 }
 
 const languagesRequestTimeout = 25 * time.Second
@@ -69,6 +70,31 @@ func NewLanguages(
 	}, nil
 }
 
+func NewDynamicLanguages(
+	service LanguagesService,
+	renderer LanguageCardRenderer,
+	logger *slog.Logger,
+) (*Languages, error) {
+	if service == nil {
+		return nil, errors.New("languages service is required")
+	}
+
+	if renderer == nil {
+		return nil, errors.New("language card renderer is required")
+	}
+
+	if logger == nil {
+		return nil, errors.New("logger is required")
+	}
+
+	return &Languages{
+		dynamicUsername: true,
+		service:         service,
+		renderer:        renderer,
+		logger:          logger,
+	}, nil
+}
+
 func (handler *Languages) ServeHTTP(
 	writer http.ResponseWriter,
 	request *http.Request,
@@ -89,6 +115,23 @@ func (handler *Languages) ServeHTTP(
 	defer cancel()
 
 	request = request.WithContext(ctx)
+
+	username := handler.username
+	if handler.dynamicUsername {
+		requestedUsername := strings.TrimSpace(
+			request.PathValue("username"),
+		)
+		if !validGitHubUsername(requestedUsername) {
+			writeError(
+				writer,
+				http.StatusBadRequest,
+				"invalid GitHub username",
+			)
+			return
+		}
+
+		username = requestedUsername
+	}
 
 	themeName := request.URL.Query().Get("theme")
 	if _, err := card.ResolveTheme(themeName); err != nil {
@@ -118,9 +161,18 @@ func (handler *Languages) ServeHTTP(
 		return
 	}
 
+	if handler.dynamicUsername && scope != repositoryScope.ScopePublic {
+		writeError(
+			writer,
+			http.StatusBadRequest,
+			"repositories=all is only available on self-hosted instances using your own GitHub token",
+		)
+		return
+	}
+
 	userLanguages, err := handler.service.Get(
 		request.Context(),
-		handler.username,
+		username,
 		scope,
 	)
 	if err != nil {
@@ -160,7 +212,7 @@ func (handler *Languages) ServeHTTP(
 			request.Context(),
 			"get GitHub user languages",
 			"username",
-			handler.username,
+			username,
 			"error",
 			err,
 		)
@@ -191,7 +243,7 @@ func (handler *Languages) ServeHTTP(
 			request.Context(),
 			"render GitHub language card",
 			"username",
-			handler.username,
+			username,
 			"error",
 			err,
 		)
@@ -222,7 +274,7 @@ func (handler *Languages) ServeHTTP(
 			request.Context(),
 			"write language SVG response",
 			"username",
-			handler.username,
+			username,
 			"error",
 			err,
 		)

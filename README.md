@@ -158,8 +158,34 @@ http://localhost:9000/stats?repositories=all
 http://localhost:9000/languages?repositories=all
 ```
 
-The GitHub username is configured through `GITHUB_USERNAME` and cannot be
-overridden through query parameters.
+The GitHub username for `/stats` and `/languages` is configured through
+`GITHUB_USERNAME` and cannot be overridden through query parameters.
+
+### Cards for any GitHub username
+
+Use the `/{username}/stats` and `/{username}/languages` endpoints to render a
+card for any public GitHub account, not just the one configured by
+`GITHUB_USERNAME`:
+
+```text
+http://localhost:9000/octocat/stats
+http://localhost:9000/octocat/languages?theme=light
+```
+
+```markdown
+![GitHub statistics](http://localhost:9000/octocat/stats)
+```
+
+These endpoints only support `repositories=public` (the default). Requesting
+`repositories=all` returns `400 Bad Request`, because the server's GitHub
+token cannot access another account's private repositories — self-host the
+application with your own `GITHUB_TOKEN` and use `/stats?repositories=all` if
+you need your private repository data included.
+
+Unlike `/stats` and `/languages`, these endpoints are not preloaded at
+startup and are not backed by the scheduled refresh job (see
+[Caching](#caching)): the first request for a given username fetches live
+data from the GitHub API and is rate-limited per client IP.
 
 ## Statistics
 
@@ -203,6 +229,16 @@ GET /stats?theme={theme}&repositories={public|all}
 GET /languages?theme={theme}&repositories={public|all}
 ```
 
+### Generate a card for any username
+
+```http
+GET /{username}/stats?theme={theme}&repositories=public
+GET /{username}/languages?theme={theme}&repositories=public
+```
+
+`repositories=all` is rejected on these endpoints; see
+[Cards for any GitHub username](#cards-for-any-github-username).
+
 A successful request returns:
 
 ```http
@@ -213,9 +249,11 @@ Possible error responses include:
 
 | Status | Meaning                              |
 |--------|--------------------------------------|
-| `400`  | Unknown theme or invalid `repositories` value |
-| `503`  | A snapshot is not available yet |
-| `504`  | Snapshot storage exceeded the deadline |
+| `400`  | Unknown theme, invalid `repositories` value, invalid `{username}`, or `repositories=all` on a `/{username}` endpoint |
+| `404`  | GitHub user not found (`/{username}` endpoints only) |
+| `429`  | Rate limit exceeded (`/{username}` endpoints only) |
+| `503`  | A snapshot is not available yet (`/stats` and `/languages` only) |
+| `504`  | Snapshot storage or GitHub request exceeded the deadline |
 | `500`  | Unexpected server error              |
 
 ### Health check
@@ -249,16 +287,27 @@ minimum read access required by your deployment:
 - Prefer a fine-grained token restricted to the repositories you intend to
   include, and never commit the token to the repository.
 
-Each deployment serves the single account configured by `GITHUB_USERNAME`.
-The username cannot be changed through a request query parameter.
+Each deployment serves the single account configured by `GITHUB_USERNAME` on
+`/stats` and `/languages`; the username cannot be changed through a request
+query parameter on those endpoints. The `/{username}/stats` and
+`/{username}/languages` endpoints can serve any public GitHub account with
+the same token, restricted to `repositories=public` (see
+[Cards for any GitHub username](#cards-for-any-github-username)).
 
 ## Caching
 
-The public server never calls GitHub directly. A scheduled refresh job writes
-stats and language snapshots to Firestore every 15 minutes. The server loads
-those snapshots into an in-memory L1 cache and falls back to stale memory data
-if Firestore has a temporary error. Browser responses use a 5-minute cache
+`/stats` and `/languages` never call GitHub directly at request time. A
+scheduled refresh job writes stats and language snapshots to Firestore every
+15 minutes for the configured `GITHUB_USERNAME`. The server loads those
+snapshots into an in-memory L1 cache and falls back to stale memory data if
+Firestore has a temporary error. Browser responses use a 5-minute cache
 duration.
+
+`/{username}/stats` and `/{username}/languages` are not preloaded and are not
+covered by the scheduled refresh job. Each request fetches live data from the
+GitHub API on demand (through the same L1/Firestore snapshot layer, keyed per
+username) and is subject to per-client-IP rate limiting to protect the
+shared `GITHUB_TOKEN` quota.
 
 ## Docker
 
@@ -320,10 +369,12 @@ credential into the image.
 
 The service is then available at `http://localhost:9000`. In production, place
 it behind an HTTPS reverse proxy and expose only the proxy publicly. Configure
-the proxy or hosting platform to use `/health` for health checks and add rate
-limiting when the service is publicly accessible; the application does not
-currently provide built-in rate limiting. Docker Compose is also supported;
-see the [Docker](#docker) section.
+the proxy or hosting platform to use `/health` for health checks. The
+`/{username}/stats` and `/{username}/languages` endpoints apply a per-client-IP
+rate limit in the application itself; `/stats` and `/languages` are served
+from cached snapshots and are not rate-limited. Consider adding
+proxy-level rate limiting as well when the service is publicly accessible.
+Docker Compose is also supported; see the [Docker](#docker) section.
 
 ### Google Cloud Run with Terraform
 
@@ -597,7 +648,12 @@ go vet ./...
 - Keep the public server identity read-only in Firestore
 - Use a token with the minimum required permissions
 - Use `repositories=all` only when you intend to expose its aggregate data
-- Add rate limiting at the reverse proxy or cloud platform for public services
+- `/{username}/stats` and `/{username}/languages` always reject
+  `repositories=all`; self-host with your own `GITHUB_TOKEN` if you need
+  private repository data for your own account
+- The application rate-limits `/{username}/stats` and
+  `/{username}/languages` per client IP; consider additional rate limiting
+  at the reverse proxy or cloud platform for public services
 - Rotate any token that appears in logs or terminal output
 - Terminate HTTPS at a reverse proxy when exposing the service publicly
 - Do not expose the application’s `.env` file through the container image

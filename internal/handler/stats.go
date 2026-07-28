@@ -30,10 +30,11 @@ type CardRenderer interface {
 }
 
 type Stats struct {
-	username string
-	service  StatsService
-	renderer CardRenderer
-	logger   *slog.Logger
+	username        string
+	dynamicUsername bool
+	service         StatsService
+	renderer        CardRenderer
+	logger          *slog.Logger
 }
 
 const statsRequestTimeout = 25 * time.Second
@@ -69,6 +70,31 @@ func NewStats(
 	}, nil
 }
 
+func NewDynamicStats(
+	service StatsService,
+	renderer CardRenderer,
+	logger *slog.Logger,
+) (*Stats, error) {
+	if service == nil {
+		return nil, errors.New("stats service is required")
+	}
+
+	if renderer == nil {
+		return nil, errors.New("card renderer is required")
+	}
+
+	if logger == nil {
+		return nil, errors.New("logger is required")
+	}
+
+	return &Stats{
+		dynamicUsername: true,
+		service:         service,
+		renderer:        renderer,
+		logger:          logger,
+	}, nil
+}
+
 func (handler *Stats) ServeHTTP(
 	writer http.ResponseWriter,
 	request *http.Request,
@@ -90,6 +116,23 @@ func (handler *Stats) ServeHTTP(
 	defer cancel()
 
 	request = request.WithContext(ctx)
+
+	username := handler.username
+	if handler.dynamicUsername {
+		requestedUsername := strings.TrimSpace(
+			request.PathValue("username"),
+		)
+		if !validGitHubUsername(requestedUsername) {
+			writeError(
+				writer,
+				http.StatusBadRequest,
+				"invalid GitHub username",
+			)
+			return
+		}
+
+		username = requestedUsername
+	}
 
 	themeName := request.URL.Query().Get("theme")
 	if _, err := card.ResolveTheme(themeName); err != nil {
@@ -119,9 +162,18 @@ func (handler *Stats) ServeHTTP(
 		return
 	}
 
+	if handler.dynamicUsername && scope != repositoryScope.ScopePublic {
+		writeError(
+			writer,
+			http.StatusBadRequest,
+			"repositories=all is only available on self-hosted instances using your own GitHub token",
+		)
+		return
+	}
+
 	userStats, err := handler.service.Get(
 		request.Context(),
-		handler.username,
+		username,
 		scope,
 	)
 	if err != nil {
@@ -161,7 +213,7 @@ func (handler *Stats) ServeHTTP(
 			request.Context(),
 			"get GitHub user stats",
 			"username",
-			handler.username,
+			username,
 			"error",
 			err,
 		)
@@ -192,7 +244,7 @@ func (handler *Stats) ServeHTTP(
 			request.Context(),
 			"render GitHub statistics card",
 			"username",
-			handler.username,
+			username,
 			"error",
 			err,
 		)
@@ -223,7 +275,7 @@ func (handler *Stats) ServeHTTP(
 			request.Context(),
 			"write SVG response",
 			"username",
-			handler.username,
+			username,
 			"error",
 			err,
 		)

@@ -16,6 +16,7 @@ import (
 	"github.com/mhmdnurf/github-stats/internal/config"
 	"github.com/mhmdnurf/github-stats/internal/handler"
 	"github.com/mhmdnurf/github-stats/internal/languages"
+	"github.com/mhmdnurf/github-stats/internal/middleware"
 	repositoryScope "github.com/mhmdnurf/github-stats/internal/repository"
 	"github.com/mhmdnurf/github-stats/internal/snapshot"
 	"github.com/mhmdnurf/github-stats/internal/stats"
@@ -24,6 +25,9 @@ import (
 const (
 	snapshotPreloadTimeout = 10 * time.Second
 	shutdownTimeout        = 10 * time.Second
+
+	dynamicRateLimitPerSecond = 1
+	dynamicRateLimitBurst     = 10
 )
 
 func main() {
@@ -179,9 +183,40 @@ func run(logger *slog.Logger) error {
 		return fmt.Errorf("create languages handler: %w", err)
 	}
 
+	dynamicStatsHandler, err := handler.NewDynamicStats(
+		statsService,
+		cardRenderer,
+		logger,
+	)
+	if err != nil {
+		return fmt.Errorf("create dynamic stats handler: %w", err)
+	}
+
+	dynamicLanguagesHandler, err := handler.NewDynamicLanguages(
+		languagesService,
+		languageRenderer,
+		logger,
+	)
+	if err != nil {
+		return fmt.Errorf("create dynamic languages handler: %w", err)
+	}
+
+	rateLimiter := middleware.NewRateLimiter(
+		dynamicRateLimitPerSecond,
+		dynamicRateLimitBurst,
+	)
+
 	mux := http.NewServeMux()
 	mux.Handle("/stats", statsHandler)
 	mux.Handle("/languages", languagesHandler)
+	mux.Handle(
+		"/{username}/stats",
+		rateLimiter.Middleware(dynamicStatsHandler),
+	)
+	mux.Handle(
+		"/{username}/languages",
+		rateLimiter.Middleware(dynamicLanguagesHandler),
+	)
 	mux.HandleFunc("/health", healthHandler)
 
 	server := &http.Server{
