@@ -82,8 +82,7 @@ if [[ "${deploy_mode}" == "all" ]]; then
     -var="project_id=${project_id}" \
     -var="region=${region}" \
     -var="service_name=${service_name}" \
-    -var="github_repository=${github_repository}" \
-    -var="retain_legacy_runtime_secret_access=true"
+    -var="github_repository=${github_repository}"
 
   if [[ -n "${GITHUB_TOKEN:-}" ]]; then
     printf '%s' "${GITHUB_TOKEN}" | \
@@ -134,13 +133,3 @@ fi
 terraform -chdir="${root_dir}/terraform/app" apply \
   -auto-approve \
   "${terraform_variables[@]}"
-
-if [[ "${deploy_mode}" == "all" ]]; then
-  terraform -chdir="${root_dir}/terraform/bootstrap" apply \
-    -auto-approve \
-    -var="project_id=${project_id}" \
-    -var="region=${region}" \
-    -var="service_name=${service_name}" \
-    -var="github_repository=${github_repository}" \
-    -var="retain_legacy_runtime_secret_access=false"
-fi

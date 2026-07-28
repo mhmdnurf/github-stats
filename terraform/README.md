@@ -142,12 +142,10 @@ terraform -chdir=terraform/bootstrap init -reconfigure \
   -backend-config="prefix=bootstrap"
 terraform -chdir=terraform/bootstrap plan \
   -var="project_id=${PROJECT_ID}" \
-  -var="github_repository=${GITHUB_REPOSITORY}" \
-  -var="retain_legacy_runtime_secret_access=false"
+  -var="github_repository=${GITHUB_REPOSITORY}"
 terraform -chdir=terraform/bootstrap apply \
   -var="project_id=${PROJECT_ID}" \
-  -var="github_repository=${GITHUB_REPOSITORY}" \
-  -var="retain_legacy_runtime_secret_access=false"
+  -var="github_repository=${GITHUB_REPOSITORY}"
 ```
 
 For the complete fork setup, including `.env`, first bootstrap, GitHub Actions,
@@ -159,9 +157,11 @@ README.
 
 Cloud Run runs in `asia-southeast2`, listens on port `8080`, keeps one instance
 warm, and is capped at one instance. The server identity has read-only
-Firestore access and does not receive the GitHub token. The refresh job runs
-every 15 minutes with a separate writer identity that can read the token from
-Secret Manager.
+Firestore access and reads `GITHUB_TOKEN` from Secret Manager, which it needs
+to serve the `/{username}/stats` and `/{username}/languages` endpoints (these
+fetch live GitHub data on demand rather than reading a Firestore snapshot).
+The refresh job runs every 15 minutes with a separate writer identity that
+also reads the token from Secret Manager.
 
 Set `RUN_INITIAL_REFRESH=false` to skip the pre-deployment refresh only when
 all four snapshots already exist in Firestore. Otherwise the new server

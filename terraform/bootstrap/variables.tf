@@ -24,9 +24,3 @@ variable "github_repository" {
     error_message = "github_repository must use the owner/repository format."
   }
 }
-
-variable "retain_legacy_runtime_secret_access" {
-  type        = bool
-  description = "Keep runtime token access until the snapshot-based server rollout succeeds."
-  default     = true
-}

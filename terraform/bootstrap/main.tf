@@ -118,17 +118,10 @@ resource "google_secret_manager_secret" "github_token" {
 }
 
 resource "google_secret_manager_secret_iam_member" "runtime_access" {
-  count = var.retain_legacy_runtime_secret_access ? 1 : 0
-
   project   = var.project_id
   secret_id = google_secret_manager_secret.github_token.secret_id
   role      = "roles/secretmanager.secretAccessor"
   member    = "serviceAccount:${google_service_account.runtime.email}"
-}
-
-moved {
-  from = google_secret_manager_secret_iam_member.runtime_access
-  to   = google_secret_manager_secret_iam_member.runtime_access[0]
 }
 
 resource "google_secret_manager_secret_iam_member" "refresh_secret_access" {

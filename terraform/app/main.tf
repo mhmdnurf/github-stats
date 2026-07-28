@@ -50,6 +50,17 @@ resource "google_cloud_run_v2_service" "github_stats" {
         name  = "FIRESTORE_COLLECTION"
         value = var.firestore_collection
       }
+
+      env {
+        name = "GITHUB_TOKEN"
+
+        value_source {
+          secret_key_ref {
+            secret  = var.github_token_secret_id
+            version = "latest"
+          }
+        }
+      }
     }
   }
 }
