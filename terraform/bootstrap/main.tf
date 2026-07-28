@@ -48,6 +48,12 @@ resource "google_storage_bucket_iam_member" "builder_cloudbuild_source" {
   member = "serviceAccount:${google_service_account.builder.email}"
 }
 
+resource "google_storage_bucket_iam_member" "builder_cloudbuild_bucket_viewer" {
+  bucket = google_storage_bucket.cloudbuild_source.name
+  role   = "roles/storage.bucketViewer"
+  member = "serviceAccount:${google_service_account.builder.email}"
+}
+
 resource "google_artifact_registry_repository" "images" {
   project       = var.project_id
   location      = var.region
